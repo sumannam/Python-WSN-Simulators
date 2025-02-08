@@ -1,3 +1,5 @@
+import os
+import csv
 import numpy as np
 
 class ShortestPathRouting:
@@ -145,19 +147,3 @@ class ShortestPathRouting:
             })
             
         return reports
-    
-    
-    def save_nodes_state(self, filename='nodes_state.csv'):
-        """모든 센서 노드의 상태 정보를 CSV로 저장"""
-        import csv
-        
-        # 첫 번째 노드에서 필드명 가져오기
-        first_node = next(iter(self.field.nodes.values()))
-        fieldnames = list(first_node.get_node_state_dict().keys())
-        
-        with open(filename, 'w', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            
-            for node in self.field.nodes.values():
-                writer.writerow(node.get_node_state_dict())

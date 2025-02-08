@@ -1,22 +1,39 @@
-import matplotlib.pyplot as plt
-import numpy as np
+import os
 import csv
 import time
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 from Field import Field
 from ShortestPathRouting import ShortestPathRouting
 
-def save_network_state(wsn_field, filename='nodes_state.csv'):
-    """전체 네트워크의 노드 상태를 CSV로 저장"""
-    first_node = next(iter(wsn_field.nodes.values()))
-    fieldnames = list(first_node.get_node_state_dict().keys())
-    
-    with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
+def save_nodes_state(wsn_field, filename='nodes_state.csv'):
+        """전체 네트워크의 노드 상태를 CSV로 저장"""
+        folder_path = 'Sinkhole-WSN'
+        file_path = os.path.join(folder_path, filename)
+
+        first_node = next(iter(wsn_field.nodes.values()))
+        fieldnames = list(first_node.get_node_state_dict().keys())
         
-        for node in wsn_field.nodes.values():
-            writer.writerow(node.get_node_state_dict())
+        with open(file_path, 'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for node in wsn_field.nodes.values():
+                writer.writerow(node.get_node_state_dict())
+
+# def save_network_state(wsn_field, filename='nodes_state.csv'):
+#     """전체 네트워크의 노드 상태를 CSV로 저장"""
+#     first_node = next(iter(wsn_field.nodes.values()))
+#     fieldnames = list(first_node.get_node_state_dict().keys())
+    
+#     with open(filename, 'w', newline='') as csvfile:
+#         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+#         writer.writeheader()
+        
+#         for node in wsn_field.nodes.values():
+#             writer.writerow(node.get_node_state_dict())
 
 def visualize_network(wsn_field):
     """WSN 노드 배치 시각화"""
@@ -107,7 +124,7 @@ def main():
         print("\nAll nodes are connected!")
     
     # 4. 보고서 전송 시뮬레이션 (시간 측정 추가)
-    num_reports = 50000  # 원하는 보고서 수 설정
+    num_reports = 5  # 원하는 보고서 수 설정
     
     print(f"\nSimulating {num_reports} Report Transmissions:")
     print("-" * 50)
@@ -137,7 +154,7 @@ def main():
     print(f"Average time per report: {elapsed_time/num_reports:.4f} seconds")
 
     # 5. 시뮬레이션 후 노드 상태 저장
-    save_network_state(wsn_field, 'final_nodes_state.csv')
+    save_nodes_state(wsn_field, 'final_nodes_state.csv')
     print("\nAll nodes state has been saved to 'final_nodes_state.csv'")
     
     # 6. 네트워크 시각화
