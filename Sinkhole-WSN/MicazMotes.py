@@ -85,3 +85,28 @@ class MicazMotes(Sensors):
             "rx_power": self.rx_power,
             "sleep_power": self.sleep_power
         }
+    
+    def get_node_state_dict(self) -> dict:
+        """노드의 현재 상태 정보를 딕셔너리로 반환"""
+        energy_info = self.get_energy_info()
+        network_info = self.get_network_info()
+        
+        return {
+            'node_id': self.node_id,
+            'pos_x': self.pos_x,
+            'pos_y': self.pos_y,
+            'status': self.status,
+            'node_type': self.node_type,
+            'energy_level': self.energy_level,
+            'initial_energy': self.initial_energy,
+            'energy_percentage': energy_info['energy_percentage'],
+            'hop_count': network_info['hop_count'],
+            'next_hop': network_info['next_hop'],
+            'neighbor_nodes': len(network_info['neighbor_nodes']),
+            'route_changes': network_info['route_changes'],
+            'distance_to_bs': network_info['distance_to_bs'],
+            'tx_count': self.tx_count,
+            'rx_count': self.rx_count,
+            'tx_power': energy_info['tx_power'],
+            'rx_power': energy_info['rx_power']
+        }
