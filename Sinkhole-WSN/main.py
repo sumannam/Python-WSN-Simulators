@@ -124,7 +124,7 @@ def main():
         print("\nAll nodes are connected!")
     
     # 4. 보고서 전송 시뮬레이션 (시간 측정 추가)
-    num_reports = 5  # 원하는 보고서 수 설정
+    num_reports = 99999  # 원하는 보고서 수 설정
     
     print(f"\nSimulating {num_reports} Report Transmissions:")
     print("-" * 50)
@@ -141,12 +141,12 @@ def main():
     # 전송 결과 출력
     for report in transmission_results:
         source_node = wsn_field.nodes[report['source_node']]
-        print(f"\nReport {report['report_id']}:")
-        print(f"Source Node ID: {source_node.node_id}")
-        print(f"Position: ({source_node.pos_x:.2f}, {source_node.pos_y:.2f})")
-        print(f"Distance to BS: {source_node.distance_to_bs:.2f}m")
-        print(f"Path to BS: {' -> '.join(report['path'])}")
-        print(f"Number of hops: {len(report['path']) - 1}")
+        # print(f"\nReport {report['report_id']}:")
+        # print(f"Source Node ID: {source_node.node_id}")
+        # print(f"Position: ({source_node.pos_x:.2f}, {source_node.pos_y:.2f})")
+        # print(f"Distance to BS: {source_node.distance_to_bs:.2f}m")
+        # print(f"Path to BS: {' -> '.join(report['path'])}")
+        # print(f"Number of hops: {len(report['path']) - 1}")
 
     # 시간 정보 출력
     print(f"\nSimulation Time Information:")

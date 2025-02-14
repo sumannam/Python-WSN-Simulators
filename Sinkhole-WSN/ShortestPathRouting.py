@@ -2,9 +2,14 @@ import os
 import csv
 import numpy as np
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+
 class ShortestPathRouting:
     def __init__(self, field):
         self.field = field
+        self.lock = Lock()  # 스레드 동기화를 위한 락
 
     def setup_routing(self):
         """BS까지의 최단 경로 설정"""
@@ -109,41 +114,51 @@ class ShortestPathRouting:
         return path
     
 
-    def simulate_reports(self, num_reports):
-        """여러 개의 보고서 전송 시뮬레이션"""
-        reports = []
-        used_sources = set()  # 이미 사용된 소스 노드 추적
-        packet_size = 32  # 기본 패킷 크기 (bytes)
-
-        for i in range(num_reports):
-            # 사용되지 않은 노드 중에서 랜덤 선택
-            available_nodes = list(set(self.field.nodes.keys()) - used_sources)
-            if not available_nodes:  # 모든 노드가 사용됐다면 초기화
-                used_sources.clear()
-                available_nodes = list(self.field.nodes.keys())
-            
+    def process_single_report(self, report_id):
+        """단일 보고서 처리 (스레드에서 실행)"""
+        packet_size = 32
+        
+        # 소스 노드 선택
+        with self.lock:  # 노드 선택 시 락 사용
+            available_nodes = list(self.field.nodes.keys())
             source_node_id = np.random.choice(available_nodes)
-            used_sources.add(source_node_id)
-            
-            # 경로 추적 및 패킷 전송
-            path = self.get_path_to_bs(source_node_id)
-            
-            # 경로를 따라 패킷 전송 시뮬레이션
-            for j in range(len(path)-1):
-                current_id = int(path[j])  # 문자열을 정수로 변환
+        
+        # 경로 추적
+        path = self.get_path_to_bs(source_node_id)
+        
+        # 경로를 따라 패킷 전송 시뮬레이션
+        for j in range(len(path)-1):
+            current_id = int(path[j])
+            with self.lock:  # 노드 상태 변경 시 락 사용
                 current_node = self.field.nodes[current_id]
-                current_node.transmit_packet(packet_size)  # 패킷 전송
+                current_node.transmit_packet(packet_size)
                 
                 if path[j+1] != "BS":
-                    next_id = int(path[j+1])  # 문자열을 정수로 변환
+                    next_id = int(path[j+1])
                     next_node = self.field.nodes[next_id]
-                    next_node.receive_packet(packet_size)  # 패킷 수신
+                    next_node.receive_packet(packet_size)
+        
+        return {
+            'report_id': report_id + 1,
+            'source_node': source_node_id,
+            'path': path,
+            'source_energy': self.field.nodes[source_node_id].energy_level
+        }
+
+    def simulate_reports(self, num_reports):
+        """멀티스레드로 여러 보고서 전송 시뮬레이션"""
+        reports = []
+        max_workers = min(num_reports, os.cpu_count() * 2)  # 스레드 수 설정
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 각 보고서를 별도의 스레드에서 처리
+            future_reports = [executor.submit(self.process_single_report, i) 
+                            for i in range(num_reports)]
             
-            reports.append({
-                'report_id': i + 1,
-                'source_node': source_node_id,
-                'path': path,
-                'source_energy': self.field.nodes[source_node_id].energy_level
-            })
-            
+            # 결과 수집
+            for future in future_reports:
+                reports.append(future.result())
+        
+        # 보고서 ID 순서대로 정렬
+        reports.sort(key=lambda x: x['report_id'])
         return reports
