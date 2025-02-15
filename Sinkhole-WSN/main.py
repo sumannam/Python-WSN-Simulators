@@ -85,7 +85,7 @@ def visualize_network(wsn_field):
     
     # 죽은 노드 그리기 (회색)
     if dead_nodes_x:  # 죽은 노드가 있는 경우
-        plt.scatter(dead_nodes_x, dead_nodes_y, c='gray', marker='o', s=50, label='Dead Nodes')
+        plt.scatter(dead_nodes_x, dead_nodes_y, c='black', marker='o', s=50, label='Dead Nodes')
     
     # 베이스 스테이션 그리기
     if wsn_field.base_station:
