@@ -58,7 +58,7 @@ class SinkholeAttack:
                     )
                     density_map[quadrant][grid_key]['distance_to_center'] = distance_to_center
         
-        # 각 구역에서 가장 적절한 위치 선정
+        # 각 구역에서 가장 적절한 위치 선정 
         best_locations = {}
         for quadrant in quadrants:
             if density_map[quadrant]:
@@ -88,13 +88,13 @@ class SinkholeAttack:
                     (node.pos_y - attacker.pos_y)**2
                 )
                 
-                # 영향 범위 내에 있는 노드는 공격자를 next_hop으로 설정
+                # 영향 범위 내에 있는 노드는 강제로 공격자 노드로 라우팅
                 if distance <= self.attack_range:
                     affected_nodes += 1
+                    node.node_type = "affected"
                     node.next_hop = attacker_id
-                    node.hop_count = 2  # 공격자를 통해 BS까지 2홉
-                    node.node_type = "affected"  # 노드 타입을 affected로 변경
-        
+                    node.hop_count = 2
+
         print(f"Attacker {attacker_id} affected {affected_nodes} nodes within {self.attack_range}m range")
 
 
@@ -185,5 +185,13 @@ class SinkholeAttack:
         else:
             self.launch_inside_attack(num_attackers)
             
-        self.modify_routing_info()  # 라우팅 정보 조작
+        # 각 공격자 노드에 대해 영향권 설정
+        for attacker_id in self.malicious_nodes:
+            self.affect_nodes_in_range(attacker_id)
+        
+        # 전체 라우팅 재설정
+        from ShortestPathRouting import ShortestPathRouting
+        routing = ShortestPathRouting(self.field)
+        routing.setup_routing()
+        
         return self.malicious_nodes
