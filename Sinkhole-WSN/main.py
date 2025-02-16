@@ -48,17 +48,56 @@ def visualize_network(wsn_field):
     plt.xlim(0, wsn_field.width)
     plt.ylim(0, wsn_field.height)
     
-    # 먼저 악성 노드 ID 목록 생성
-    malicious_ids = {node_id for node_id, node in wsn_field.nodes.items() 
-                    if node.node_type in ["malicious_inside", "malicious_outside"]}
+    # 노드 분류
+    normal_nodes_x = []
+    normal_nodes_y = []
+    normal_colors = []
+    dead_nodes_x = []
+    dead_nodes_y = []
+    inside_attack_x = []
+    inside_attack_y = []
+    outside_attack_x = []
+    outside_attack_y = []
+    affected_nodes_x = []
+    affected_nodes_y = []
+    
+    # 노드 데이터 분류
+    for node in wsn_field.nodes.values():
+        if node.status == "inactive":
+            dead_nodes_x.append(node.pos_x)
+            dead_nodes_y.append(node.pos_y)
+        elif node.node_type == "malicious_inside":
+            inside_attack_x.append(node.pos_x)
+            inside_attack_y.append(node.pos_y)
+        elif node.node_type == "malicious_outside":
+            outside_attack_x.append(node.pos_x)
+            outside_attack_y.append(node.pos_y)
+        elif node.node_type == "affected":
+            affected_nodes_x.append(node.pos_x)
+            affected_nodes_y.append(node.pos_y)
+        else:
+            normal_nodes_x.append(node.pos_x)
+            normal_nodes_y.append(node.pos_y)
+            energy_ratio = node.energy_level / node.initial_energy
+            color_intensity = max(0.2, energy_ratio)
+            normal_colors.append((0, 0, color_intensity))
+    
+    # 공격 범위 원 그리기
+    for node in wsn_field.nodes.values():
+        if node.node_type in ["malicious_outside", "malicious_inside"]:
+            attack_range = plt.Circle((node.pos_x, node.pos_y), 
+                                    200, 
+                                    color='red', 
+                                    fill=False, 
+                                    linestyle='--', 
+                                    alpha=0.5)
+            plt.gca().add_patch(attack_range)
     
     # 라우팅 경로 그리기
     for node_id, node in wsn_field.nodes.items():
         if node.next_hop:
-            # 현재 노드나 다음 노드가 악성이거나, 다음 홉이 악성 노드인 경우 빨간색으로 표시
-            is_affected = (node_id in malicious_ids or 
-                         (node.next_hop in malicious_ids) or 
-                         (node.next_hop == "BS" and node_id in malicious_ids))
+            # 현재 노드가 영향을 받은 노드인지 확인
+            is_affected = (node.node_type in ["malicious_inside", "malicious_outside", "affected"])
             
             if node.next_hop == "BS":
                 plt.plot([node.pos_x, wsn_field.base_station['x']],
@@ -74,34 +113,6 @@ def visualize_network(wsn_field):
                         alpha=0.8 if is_affected else 0.3,
                         linewidth=2 if is_affected else 1)
     
-    # 노드 분류 및 그리기
-    normal_nodes_x = []
-    normal_nodes_y = []
-    normal_colors = []
-    dead_nodes_x = []
-    dead_nodes_y = []
-    inside_attack_x = []
-    inside_attack_y = []
-    outside_attack_x = []
-    outside_attack_y = []
-    
-    for node in wsn_field.nodes.values():
-        if node.status == "inactive":
-            dead_nodes_x.append(node.pos_x)
-            dead_nodes_y.append(node.pos_y)
-        elif node.node_type == "malicious_inside":
-            inside_attack_x.append(node.pos_x)
-            inside_attack_y.append(node.pos_y)
-        elif node.node_type == "malicious_outside":
-            outside_attack_x.append(node.pos_x)
-            outside_attack_y.append(node.pos_y)
-        else:
-            normal_nodes_x.append(node.pos_x)
-            normal_nodes_y.append(node.pos_y)
-            energy_ratio = node.energy_level / node.initial_energy
-            color_intensity = max(0.2, energy_ratio)
-            normal_colors.append((0, 0, color_intensity))
-    
     # 노드 그리기
     if normal_nodes_x:
         plt.scatter(normal_nodes_x, normal_nodes_y, 
@@ -115,6 +126,9 @@ def visualize_network(wsn_field):
     if outside_attack_x:
         plt.scatter(outside_attack_x, outside_attack_y, 
                    c='red', marker='o', s=100, label='Outside Attackers')
+    if affected_nodes_x:
+        plt.scatter(affected_nodes_x, affected_nodes_y, 
+                   c='orange', marker='o', s=50, label='Affected Nodes')
     
     # BS 그리기
     plt.scatter(wsn_field.base_station['x'], wsn_field.base_station['y'],

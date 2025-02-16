@@ -9,32 +9,79 @@ class SinkholeAttack:
         self.attack_range = 200  # 공격 영향 범위 (m)
 
     def calculate_node_density(self):
-        """필드를 그리드로 나누어 각 영역의 노드 밀도 계산"""
+        """필드를 4개 구역으로 나누고 각 구역의 노드 밀도 계산"""
         density_map = {}
+        bs_x = self.field.base_station['x']
+        bs_y = self.field.base_station['y']
         
-        # 그리드별 노드 수 계산
-        for node in self.field.nodes.values():
-            grid_x = int(node.pos_x / self.grid_size)
-            grid_y = int(node.pos_y / self.grid_size)
-            grid_key = (grid_x, grid_y)
+        # 필드를 4개 구역으로 나눔
+        quadrants = {
+            'Q1': {'x_range': (0, self.field.width/2), 'y_range': (self.field.height/2, self.field.height)},
+            'Q2': {'x_range': (self.field.width/2, self.field.width), 'y_range': (self.field.height/2, self.field.height)},
+            'Q3': {'x_range': (0, self.field.width/2), 'y_range': (0, self.field.height/2)},
+            'Q4': {'x_range': (self.field.width/2, self.field.width), 'y_range': (0, self.field.height/2)}
+        }
+        
+        # 각 구역별로 그리드 밀도 계산
+        for quadrant, ranges in quadrants.items():
+            density_map[quadrant] = {}
             
-            if grid_key not in density_map:
-                density_map[grid_key] = []
-            density_map[grid_key].append(node.node_id)
+            # 구역 중심점 계산
+            quadrant_center_x = (ranges['x_range'][0] + ranges['x_range'][1]) / 2
+            quadrant_center_y = (ranges['y_range'][0] + ranges['y_range'][1]) / 2
+            
+            # 해당 구역의 노드들에 대해 그리드 밀도 계산
+            for node in self.field.nodes.values():
+                if (ranges['x_range'][0] <= node.pos_x < ranges['x_range'][1] and 
+                    ranges['y_range'][0] <= node.pos_y < ranges['y_range'][1]):
+                    
+                    grid_x = int((node.pos_x - ranges['x_range'][0]) / self.grid_size)
+                    grid_y = int((node.pos_y - ranges['y_range'][0]) / self.grid_size)
+                    grid_key = (grid_x, grid_y)
+                    
+                    if grid_key not in density_map[quadrant]:
+                        density_map[quadrant][grid_key] = {
+                            'nodes': [],
+                            'center_x': ranges['x_range'][0] + (grid_x + 0.5) * self.grid_size,
+                            'center_y': ranges['y_range'][0] + (grid_y + 0.5) * self.grid_size,
+                            'distance_to_center': 0
+                        }
+                    
+                    density_map[quadrant][grid_key]['nodes'].append(node.node_id)
+                    
+                    # 그리드 중심점과 구역 중심점 사이의 거리 계산
+                    center_x = density_map[quadrant][grid_key]['center_x']
+                    center_y = density_map[quadrant][grid_key]['center_y']
+                    distance_to_center = np.sqrt(
+                        (center_x - quadrant_center_x)**2 + 
+                        (center_y - quadrant_center_y)**2
+                    )
+                    density_map[quadrant][grid_key]['distance_to_center'] = distance_to_center
         
-        # 노드 수가 가장 많은 그리드 찾기
-        dense_grids = sorted(density_map.items(), 
-                           key=lambda x: len(x[1]), 
-                           reverse=True)
-        return dense_grids
+        # 각 구역에서 가장 적절한 위치 선정
+        best_locations = {}
+        for quadrant in quadrants:
+            if density_map[quadrant]:
+                # 노드 수가 많고 중심에 가까운 그리드 선택
+                grids = sorted(
+                    density_map[quadrant].items(),
+                    key=lambda x: (len(x[1]['nodes']) / (x[1]['distance_to_center'] + 1)),
+                    reverse=True
+                )
+                if grids:
+                    best_locations[quadrant] = (grids[0][1]['center_x'], 
+                                            grids[0][1]['center_y'], 
+                                            len(grids[0][1]['nodes']))
+        
+        return best_locations
 
     def affect_nodes_in_range(self, attacker_id):
         """공격 노드 주변의 노드들이 영향을 받도록 처리"""
         attacker = self.field.nodes[attacker_id]
-        affected_nodes = 0  # 영향받은 노드 수 카운트
+        affected_nodes = 0
         
         for node_id, node in self.field.nodes.items():
-            if node_id != attacker_id and node.node_type == "normal":  # 일반 노드만 영향을 받음
+            if node_id != attacker_id and node.node_type == "normal":
                 # 노드와 공격자 사이의 거리 계산
                 distance = np.sqrt(
                     (node.pos_x - attacker.pos_x)**2 + 
@@ -45,19 +92,34 @@ class SinkholeAttack:
                 if distance <= self.attack_range:
                     affected_nodes += 1
                     node.next_hop = attacker_id
-                    node.hop_count = 2  # 공격자를 통해 BS까지 2홉으로 설정
+                    node.hop_count = 2  # 공격자를 통해 BS까지 2홉
+                    node.node_type = "affected"  # 노드 타입을 affected로 변경
         
         print(f"Attacker {attacker_id} affected {affected_nodes} nodes within {self.attack_range}m range")
 
-    def launch_outside_attack(self, num_attackers=1):
-        """노드 밀도가 높은 지역에 외부 공격자 배치"""
-        dense_grids = self.calculate_node_density()
+
+    def launch_outside_attack(self, num_attackers=2):
+        """두 개의 구역에 공격자 배치"""
+        best_locations = self.calculate_node_density()
         
-        for i in range(min(num_attackers, len(dense_grids))):
-            grid_pos = dense_grids[i][0]
-            # 선택된 그리드 내의 랜덤한 위치 선정
-            x = (grid_pos[0] * self.grid_size) + np.random.uniform(0, self.grid_size)
-            y = (grid_pos[1] * self.grid_size) + np.random.uniform(0, self.grid_size)
+        # 노드 수가 많은 순서로 구역 정렬
+        sorted_quadrants = sorted(
+            best_locations.items(),
+            key=lambda x: x[1][2],  # x[1][2]는 노드 수
+            reverse=True
+        )
+        
+        # 상위 두 구역에 공격자 배치
+        for i in range(min(num_attackers, len(sorted_quadrants))):
+            quadrant = sorted_quadrants[i][0]
+            x, y, node_count = sorted_quadrants[i][1]
+            
+            # 위치에 약간의 랜덤성 추가
+            x += np.random.uniform(-50, 50)  # ±50m 범위 내 랜덤
+            y += np.random.uniform(-50, 50)
+            
+            print(f"Placing attacker in {quadrant} at ({x:.2f}, {y:.2f}), "
+                f"nearby nodes: {node_count}")
             
             # 공격자 노드 생성
             attacker_id = max(self.field.nodes.keys()) + 1

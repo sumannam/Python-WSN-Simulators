@@ -96,29 +96,24 @@ class MicazMotes(Sensors):
        }
    
    def get_node_state_dict(self) -> dict:
-       """노드의 현재 상태 정보를 딕셔너리로 반환"""
-       energy_info = self.get_energy_info()
-       network_info = self.get_network_info()
-       
-       return {
-           'node_id': self.node_id,
-           'pos_x': self.pos_x,
-           'pos_y': self.pos_y,
-           'status': self.status,
-           'node_type': self.node_type,
-           'energy_level': self.energy_level,
-           'initial_energy': self.initial_energy,
-           'energy_percentage': energy_info['energy_percentage'],
-           'consumed_energy_tx': self.consumed_energy_tx,
-           'consumed_energy_rx': self.consumed_energy_rx,
-           'total_consumed_energy': self.total_consumed_energy,
-           'hop_count': network_info['hop_count'],
-           'next_hop': network_info['next_hop'],
-           'neighbor_nodes': len(network_info['neighbor_nodes']),
-           'route_changes': network_info['route_changes'],
-           'distance_to_bs': network_info['distance_to_bs'],
-           'tx_count': self.tx_count,
-           'rx_count': self.rx_count,
-           'tx_power': energy_info['tx_power'],
-           'rx_power': energy_info['rx_power']
-       }
+    """노드의 현재 상태 정보를 딕셔너리로 반환"""
+    base_info = super().get_node_state_dict()  # 부모 클래스의 기본 정보 가져오기
+    energy_info = self.get_energy_info()
+    
+    # 기본 정보 업데이트 및 확장
+    base_info.update({
+        'energy_level': self.energy_level,
+        'initial_energy': self.initial_energy,
+        'energy_percentage': energy_info['energy_percentage'],
+        'consumed_energy_tx': self.consumed_energy_tx,
+        'consumed_energy_rx': self.consumed_energy_rx,
+        'total_consumed_energy': self.total_consumed_energy,
+        'tx_count': self.tx_count,
+        'rx_count': self.rx_count,
+        'tx_power': energy_info['tx_power'],
+        'rx_power': energy_info['rx_power'],
+        'hop_count': self.hop_count,  # hop_count 추가
+        'node_type': self.node_type   # node_type 추가
+    })
+    
+    return base_info
