@@ -17,29 +17,29 @@ class ShortestPathRouting:
             print("Base station not set. Cannot setup routing.")
             return
 
+        # 모든 노드의 초기화
+        for node in self.field.nodes.values():
+            old_next_hop = node.next_hop  # 이전 next_hop 저장
+            node.hop_count = float('inf')
+            node.next_hop = None
+            
+            # next_hop이 변경되면 route_changes 증가
+            if old_next_hop is not None and old_next_hop != node.next_hop:
+                node.route_changes += 1
+
         bs_x = self.field.base_station['x']
         bs_y = self.field.base_station['y']
 
-        # 모든 노드의 초기화
-        for node in self.field.nodes.values():
-            node.hop_count = float('inf')
-            node.next_hop = None
-
-        # 우선 공격자 노드 처리 (공격자는 BS와 1홉 거리라고 주장)
-        malicious_nodes = [node_id for node_id, node in self.field.nodes.items() 
-                        if node.node_type in ["malicious_inside", "malicious_outside"]]
-        for node_id in malicious_nodes:
-            node = self.field.nodes[node_id]
-            node.hop_count = 1
-            node.next_hop = "BS"
-
         # BS와 직접 연결 가능한 일반 노드들 처리
         for node_id, node in self.field.nodes.items():
-            if node_id not in malicious_nodes and node.node_type == "normal":
+            if node.node_type == "normal":
                 dist_to_bs = ((node.pos_x - bs_x)**2 + (node.pos_y - bs_y)**2)**0.5
                 if dist_to_bs <= node.comm_range:
+                    old_next_hop = node.next_hop
                     node.next_hop = "BS"
                     node.hop_count = 1
+                    if old_next_hop != "BS":
+                        node.route_changes += 1
 
         # 나머지 노드들의 라우팅 설정
         changes_made = True
@@ -53,30 +53,17 @@ class ShortestPathRouting:
 
                     for neighbor_id in node.neighbor_nodes:
                         neighbor = self.field.nodes[neighbor_id]
-                        
-                        # 공격자 노드가 이웃에 있으면 무조건 선택
-                        if neighbor.node_type in ["malicious_inside", "malicious_outside"]:
-                            best_next_hop = neighbor_id
-                            min_hop_count = neighbor.hop_count
-                            break
-                        
-                        # 아니면 최소 hop_count를 가진 이웃 선택
-                        elif neighbor.hop_count < min_hop_count:
+                        if neighbor.hop_count < min_hop_count:
                             min_hop_count = neighbor.hop_count
                             best_next_hop = neighbor_id
 
                     if best_next_hop is not None:
+                        old_next_hop = node.next_hop
                         node.next_hop = best_next_hop
                         node.hop_count = min_hop_count + 1
+                        if old_next_hop != best_next_hop:
+                            node.route_changes += 1
                         changes_made = True
-
-            if not changes_made:
-                # 연결되지 않은 노드가 있으면 통신 범위 확장
-                unconnected = sum(1 for node in self.field.nodes.values() 
-                                if node.hop_count == float('inf'))
-                if unconnected > 0:
-                    self._extend_communication_range()
-                    changes_made = True
 
     def _connect_direct_to_bs(self, unconnected_nodes, connected_nodes):
         """BS와 직접 연결 가능한 노드들 처리"""

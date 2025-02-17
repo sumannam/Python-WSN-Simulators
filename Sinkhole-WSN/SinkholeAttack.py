@@ -88,13 +88,17 @@ class SinkholeAttack:
                     (node.pos_y - attacker.pos_y)**2
                 )
                 
-                # 영향 범위 내에 있는 노드는 강제로 공격자 노드로 라우팅
+                # 영향 범위 내에 있는 노드는 공격자를 next_hop으로 설정
                 if distance <= self.attack_range:
-                    affected_nodes += 1
-                    node.node_type = "affected"
+                    old_next_hop = node.next_hop
                     node.next_hop = attacker_id
                     node.hop_count = 2
-
+                    node.node_type = "affected"
+                    # 라우팅이 변경되었으므로 route_changes 증가
+                    if old_next_hop != attacker_id:
+                        node.route_changes += 1
+                    affected_nodes += 1
+        
         print(f"Attacker {attacker_id} affected {affected_nodes} nodes within {self.attack_range}m range")
 
 
