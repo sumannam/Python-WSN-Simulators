@@ -41,106 +41,110 @@ def save_nodes_state(wsn_field, filename='nodes_state.csv'):
                writer.writerow(node.get_node_state_dict())
 
 def visualize_network(wsn_field):
-    """WSN 노드 배치 시각화"""
-    plt.figure(figsize=(12, 12))
-    
-    # 필드 경계 설정
-    plt.xlim(0, wsn_field.width)
-    plt.ylim(0, wsn_field.height)
-    
-    # 노드 분류
-    normal_nodes_x = []
-    normal_nodes_y = []
-    normal_colors = []
-    dead_nodes_x = []
-    dead_nodes_y = []
-    inside_attack_x = []
-    inside_attack_y = []
-    outside_attack_x = []
-    outside_attack_y = []
-    affected_nodes_x = []
-    affected_nodes_y = []
-    
-    # 노드 데이터 분류
-    for node in wsn_field.nodes.values():
-        if node.status == "inactive":
-            dead_nodes_x.append(node.pos_x)
-            dead_nodes_y.append(node.pos_y)
-        elif node.node_type == "malicious_inside":
-            inside_attack_x.append(node.pos_x)
-            inside_attack_y.append(node.pos_y)
-        elif node.node_type == "malicious_outside":
-            outside_attack_x.append(node.pos_x)
-            outside_attack_y.append(node.pos_y)
-        elif node.node_type == "affected":
-            affected_nodes_x.append(node.pos_x)
-            affected_nodes_y.append(node.pos_y)
-        else:
-            normal_nodes_x.append(node.pos_x)
-            normal_nodes_y.append(node.pos_y)
-            energy_ratio = node.energy_level / node.initial_energy
-            color_intensity = max(0.2, energy_ratio)
-            normal_colors.append((0, 0, color_intensity))
-    
-    # 공격 범위 원 그리기
-    for node in wsn_field.nodes.values():
-        if node.node_type in ["malicious_outside", "malicious_inside"]:
-            attack_range = plt.Circle((node.pos_x, node.pos_y), 
-                                    200, 
-                                    color='red', 
-                                    fill=False, 
-                                    linestyle='--', 
-                                    alpha=0.5)
-            plt.gca().add_patch(attack_range)
-    
-    # 라우팅 경로 그리기
-    for node_id, node in wsn_field.nodes.items():
-        if node.next_hop:
-            # 현재 노드가 영향을 받은 노드인지 확인
-            is_affected = (node.node_type in ["malicious_inside", "malicious_outside", "affected"])
-            
-            if node.next_hop == "BS":
-                plt.plot([node.pos_x, wsn_field.base_station['x']],
-                        [node.pos_y, wsn_field.base_station['y']],
-                        'r-' if is_affected else 'gray', 
-                        alpha=0.8 if is_affected else 0.3,
-                        linewidth=2 if is_affected else 1)
-            elif node.next_hop in wsn_field.nodes:
-                next_node = wsn_field.nodes[node.next_hop]
-                plt.plot([node.pos_x, next_node.pos_x],
-                        [node.pos_y, next_node.pos_y],
-                        'r-' if is_affected else 'gray',
-                        alpha=0.8 if is_affected else 0.3,
-                        linewidth=2 if is_affected else 1)
-    
-    # 노드 그리기
-    if normal_nodes_x:
-        plt.scatter(normal_nodes_x, normal_nodes_y, 
-                   c=normal_colors, marker='o', s=50, label='Normal Nodes')
-    if dead_nodes_x:
-        plt.scatter(dead_nodes_x, dead_nodes_y, 
-                   c='black', marker='o', s=50, label='Dead Nodes')
-    if inside_attack_x:
-        plt.scatter(inside_attack_x, inside_attack_y, 
-                   c='pink', marker='o', s=100, label='Inside Attackers')
-    if outside_attack_x:
-        plt.scatter(outside_attack_x, outside_attack_y, 
-                   c='red', marker='o', s=100, label='Outside Attackers')
-    if affected_nodes_x:
-        plt.scatter(affected_nodes_x, affected_nodes_y, 
-                   c='orange', marker='o', s=50, label='Affected Nodes')
-    
-    # BS 그리기
-    plt.scatter(wsn_field.base_station['x'], wsn_field.base_station['y'],
-               c='red', marker='^', s=200, label='Base Station')
-    
-    plt.title('WSN Node Deployment with Sinkhole Attacks')
-    plt.xlabel('Field Width (m)')
-    plt.ylabel('Field Height (m)')
-    plt.legend()
-    plt.grid(True)
-    plt.axis('equal')
-    plt.show()
+   """WSN 노드 배치 시각화"""
+   plt.figure(figsize=(12, 12))
+   
+   # 필드 경계 설정
+   plt.xlim(0, wsn_field.width)
+   plt.ylim(0, wsn_field.height)
+   
+   # 노드 분류
+   normal_nodes_x = []
+   normal_nodes_y = []
+   normal_colors = []
+   dead_nodes_x = []
+   dead_nodes_y = []
+   inside_attack_x = []
+   inside_attack_y = []
+   outside_attack_x = []
+   outside_attack_y = []
+   affected_nodes_x = []
+   affected_nodes_y = []
+   
+   # 노드 데이터 분류
+   for node in wsn_field.nodes.values():
+       if node.status == "inactive":
+           dead_nodes_x.append(node.pos_x)
+           dead_nodes_y.append(node.pos_y)
+       elif node.node_type == "malicious_inside":
+           inside_attack_x.append(node.pos_x)
+           inside_attack_y.append(node.pos_y)
+       elif node.node_type == "malicious_outside":
+           outside_attack_x.append(node.pos_x)
+           outside_attack_y.append(node.pos_y)
+       elif node.node_type == "affected":
+           affected_nodes_x.append(node.pos_x)
+           affected_nodes_y.append(node.pos_y)
+       else:
+           normal_nodes_x.append(node.pos_x)
+           normal_nodes_y.append(node.pos_y)
+           energy_ratio = node.energy_level / node.initial_energy
+           color_intensity = max(0.2, energy_ratio)
+           normal_colors.append((0, 0, color_intensity))
+   
+   # 공격 범위 원 그리기
+   for node in wsn_field.nodes.values():
+       if node.node_type in ["malicious_outside", "malicious_inside"]:
+           attack_range = plt.Circle((node.pos_x, node.pos_y), 
+                                   200, 
+                                   color='red', 
+                                   fill=False, 
+                                   linestyle='--', 
+                                   alpha=0.5)
+           plt.gca().add_patch(attack_range)
+   
+   # 라우팅 경로 그리기
+   for node_id, node in wsn_field.nodes.items():
+       if node.next_hop:
+           # 공격자 노드는 BS와 연결선을 그리지 않음
+           if node.node_type in ["malicious_inside", "malicious_outside"] and node.next_hop == "BS":
+               continue
+
+           # 현재 노드가 영향을 받은 노드인지 확인
+           is_affected = (node.node_type in ["malicious_inside", "malicious_outside", "affected"])
+           
+           if node.next_hop == "BS":
+               plt.plot([node.pos_x, wsn_field.base_station['x']],
+                       [node.pos_y, wsn_field.base_station['y']],
+                       'r-' if is_affected else 'gray', 
+                       alpha=0.8 if is_affected else 0.3,
+                       linewidth=2 if is_affected else 1)
+           elif node.next_hop in wsn_field.nodes:
+               next_node = wsn_field.nodes[node.next_hop]
+               plt.plot([node.pos_x, next_node.pos_x],
+                       [node.pos_y, next_node.pos_y],
+                       'r-' if is_affected else 'gray',
+                       alpha=0.8 if is_affected else 0.3,
+                       linewidth=2 if is_affected else 1)
+   
+   # 노드 그리기
+   if normal_nodes_x:
+       plt.scatter(normal_nodes_x, normal_nodes_y, 
+                  c=normal_colors, marker='o', s=50, label='Normal Nodes')
+   if dead_nodes_x:
+       plt.scatter(dead_nodes_x, dead_nodes_y, 
+                  c='black', marker='o', s=50, label='Dead Nodes')
+   if inside_attack_x:
+       plt.scatter(inside_attack_x, inside_attack_y, 
+                  c='pink', marker='o', s=100, label='Inside Attackers')
+   if outside_attack_x:
+       plt.scatter(outside_attack_x, outside_attack_y, 
+                  c='red', marker='o', s=100, label='Outside Attackers')
+   if affected_nodes_x:
+       plt.scatter(affected_nodes_x, affected_nodes_y, 
+                  c='orange', marker='o', s=50, label='Affected Nodes')
+   
+   # BS 그리기
+   plt.scatter(wsn_field.base_station['x'], wsn_field.base_station['y'],
+              c='red', marker='^', s=200, label='Base Station')
+   
+   plt.title('WSN Node Deployment with Sinkhole Attacks')
+   plt.xlabel('Field Width (m)')
+   plt.ylabel('Field Height (m)')
+   plt.legend()
+   plt.grid(True)
+   plt.axis('equal')
+   plt.show()
 
 def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
     """공격 시점을 고려한 시뮬레이션 실행"""
