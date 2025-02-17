@@ -17,15 +17,53 @@ class ShortestPathRouting:
             print("Base station not set. Cannot setup routing.")
             return
 
+        # 모든 노드의 초기화
+        for node in self.field.nodes.values():
+            old_next_hop = node.next_hop  # 이전 next_hop 저장
+            node.hop_count = float('inf')
+            node.next_hop = None
+            
+            # next_hop이 변경되면 route_changes 증가
+            if old_next_hop is not None and old_next_hop != node.next_hop:
+                node.route_changes += 1
+
         bs_x = self.field.base_station['x']
         bs_y = self.field.base_station['y']
 
-        # 모든 노드의 초기 상태를 미연결로 설정
-        unconnected_nodes = set(self.field.nodes.keys())
-        connected_nodes = set()
+        # BS와 직접 연결 가능한 일반 노드들 처리
+        for node_id, node in self.field.nodes.items():
+            if node.node_type == "normal":
+                dist_to_bs = ((node.pos_x - bs_x)**2 + (node.pos_y - bs_y)**2)**0.5
+                if dist_to_bs <= node.comm_range:
+                    old_next_hop = node.next_hop
+                    node.next_hop = "BS"
+                    node.hop_count = 1
+                    if old_next_hop != "BS":
+                        node.route_changes += 1
 
-        self._connect_direct_to_bs(unconnected_nodes, connected_nodes)
-        self._connect_remaining_nodes(unconnected_nodes, connected_nodes)
+        # 나머지 노드들의 라우팅 설정
+        changes_made = True
+        while changes_made:
+            changes_made = False
+            for node_id, node in self.field.nodes.items():
+                if node.hop_count == float('inf'):
+                    # 이웃 노드들 중 최적의 next hop 찾기
+                    best_next_hop = None
+                    min_hop_count = float('inf')
+
+                    for neighbor_id in node.neighbor_nodes:
+                        neighbor = self.field.nodes[neighbor_id]
+                        if neighbor.hop_count < min_hop_count:
+                            min_hop_count = neighbor.hop_count
+                            best_next_hop = neighbor_id
+
+                    if best_next_hop is not None:
+                        old_next_hop = node.next_hop
+                        node.next_hop = best_next_hop
+                        node.hop_count = min_hop_count + 1
+                        if old_next_hop != best_next_hop:
+                            node.route_changes += 1
+                        changes_made = True
 
     def _connect_direct_to_bs(self, unconnected_nodes, connected_nodes):
         """BS와 직접 연결 가능한 노드들 처리"""

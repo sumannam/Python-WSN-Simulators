@@ -26,21 +26,65 @@ NUM_REPORTS = 10         # 생성할 보고서 수
 SAVE_FILE_NAME = 'final_nodes_state.csv'  # 결과 저장 파일명
 
 def save_nodes_state(wsn_field, filename='nodes_state.csv'):
-       """전체 네트워크의 노드 상태를 CSV로 저장"""
-       folder_path = 'Sinkhole-WSN'
-       file_path = os.path.join(folder_path, filename)
+    """전체 네트워크의 노드 상태를 CSV로 저장"""
+    folder_path = 'Sinkhole-WSN'
+    file_path = os.path.join(folder_path, filename)
 
-       first_node = next(iter(wsn_field.nodes.values()))
-       fieldnames = list(first_node.get_node_state_dict().keys())
-       
-       with open(file_path, 'w', newline='') as csvfile:
-           writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-           writer.writeheader()
-           
-           for node in wsn_field.nodes.values():
-               writer.writerow(node.get_node_state_dict())
+    first_node = next(iter(wsn_field.nodes.values()))
+    fieldnames = list(first_node.get_node_state_dict().keys())
+    
+    with open(file_path, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        
+        for node in wsn_field.nodes.values():
+            writer.writerow(node.get_node_state_dict())
 
-def visualize_network(wsn_field):
+def classify_wsn_nodes(wsn_field):
+    """WSN 노드들을 타입별로 분류"""
+    # 노드 분류를 위한 리스트 초기화
+    normal_nodes_x = []
+    normal_nodes_y = []
+    normal_colors = []
+    dead_nodes_x = []
+    dead_nodes_y = []
+    inside_attack_x = []
+    inside_attack_y = []
+    outside_attack_x = []
+    outside_attack_y = []
+    affected_nodes_x = []
+    affected_nodes_y = []
+    
+    # 노드 데이터 분류
+    for node in wsn_field.nodes.values():
+        if node.status == "inactive":
+            dead_nodes_x.append(node.pos_x)
+            dead_nodes_y.append(node.pos_y)
+        elif node.node_type == "malicious_inside":
+            inside_attack_x.append(node.pos_x)
+            inside_attack_y.append(node.pos_y)
+        elif node.node_type == "malicious_outside":
+            outside_attack_x.append(node.pos_x)
+            outside_attack_y.append(node.pos_y)
+        elif node.node_type == "affected":
+            affected_nodes_x.append(node.pos_x)
+            affected_nodes_y.append(node.pos_y)
+        else:
+            normal_nodes_x.append(node.pos_x)
+            normal_nodes_y.append(node.pos_y)
+            energy_ratio = node.energy_level / node.initial_energy
+            color_intensity = max(0.2, energy_ratio)
+            normal_colors.append((0, 0, color_intensity))
+    
+    return {
+        'normal': (normal_nodes_x, normal_nodes_y, normal_colors),
+        'dead': (dead_nodes_x, dead_nodes_y),
+        'inside_attack': (inside_attack_x, inside_attack_y),
+        'outside_attack': (outside_attack_x, outside_attack_y),
+        'affected': (affected_nodes_x, affected_nodes_y)
+    }
+
+def plot_wsn_network(wsn_field, classified_nodes):
     """WSN 노드 배치 시각화"""
     plt.figure(figsize=(12, 12))
     
@@ -48,17 +92,26 @@ def visualize_network(wsn_field):
     plt.xlim(0, wsn_field.width)
     plt.ylim(0, wsn_field.height)
     
-    # 먼저 악성 노드 ID 목록 생성
-    malicious_ids = {node_id for node_id, node in wsn_field.nodes.items() 
-                    if node.node_type in ["malicious_inside", "malicious_outside"]}
+    # 공격 범위 원 그리기
+    for node in wsn_field.nodes.values():
+        if node.node_type in ["malicious_outside", "malicious_inside"]:
+            attack_range = plt.Circle((node.pos_x, node.pos_y), 
+                                    200, 
+                                    color='red', 
+                                    fill=False, 
+                                    linestyle='--', 
+                                    alpha=0.5)
+            plt.gca().add_patch(attack_range)
     
     # 라우팅 경로 그리기
     for node_id, node in wsn_field.nodes.items():
         if node.next_hop:
-            # 현재 노드나 다음 노드가 악성이거나, 다음 홉이 악성 노드인 경우 빨간색으로 표시
-            is_affected = (node_id in malicious_ids or 
-                         (node.next_hop in malicious_ids) or 
-                         (node.next_hop == "BS" and node_id in malicious_ids))
+            # 공격자 노드는 BS와 연결선을 그리지 않음
+            if node.node_type in ["malicious_inside", "malicious_outside"] and node.next_hop == "BS":
+                continue
+
+            # 현재 노드가 영향을 받은 노드인지 확인
+            is_affected = (node.node_type in ["malicious_inside", "malicious_outside", "affected"])
             
             if node.next_hop == "BS":
                 plt.plot([node.pos_x, wsn_field.base_station['x']],
@@ -74,47 +127,31 @@ def visualize_network(wsn_field):
                         alpha=0.8 if is_affected else 0.3,
                         linewidth=2 if is_affected else 1)
     
-    # 노드 분류 및 그리기
-    normal_nodes_x = []
-    normal_nodes_y = []
-    normal_colors = []
-    dead_nodes_x = []
-    dead_nodes_y = []
-    inside_attack_x = []
-    inside_attack_y = []
-    outside_attack_x = []
-    outside_attack_y = []
-    
-    for node in wsn_field.nodes.values():
-        if node.status == "inactive":
-            dead_nodes_x.append(node.pos_x)
-            dead_nodes_y.append(node.pos_y)
-        elif node.node_type == "malicious_inside":
-            inside_attack_x.append(node.pos_x)
-            inside_attack_y.append(node.pos_y)
-        elif node.node_type == "malicious_outside":
-            outside_attack_x.append(node.pos_x)
-            outside_attack_y.append(node.pos_y)
-        else:
-            normal_nodes_x.append(node.pos_x)
-            normal_nodes_y.append(node.pos_y)
-            energy_ratio = node.energy_level / node.initial_energy
-            color_intensity = max(0.2, energy_ratio)
-            normal_colors.append((0, 0, color_intensity))
-    
     # 노드 그리기
-    if normal_nodes_x:
-        plt.scatter(normal_nodes_x, normal_nodes_y, 
+    normal_x, normal_y, normal_colors = classified_nodes['normal']
+    if normal_x:
+        plt.scatter(normal_x, normal_y, 
                    c=normal_colors, marker='o', s=50, label='Normal Nodes')
-    if dead_nodes_x:
-        plt.scatter(dead_nodes_x, dead_nodes_y, 
+    
+    dead_x, dead_y = classified_nodes['dead']
+    if dead_x:
+        plt.scatter(dead_x, dead_y, 
                    c='black', marker='o', s=50, label='Dead Nodes')
-    if inside_attack_x:
-        plt.scatter(inside_attack_x, inside_attack_y, 
+    
+    inside_x, inside_y = classified_nodes['inside_attack']
+    if inside_x:
+        plt.scatter(inside_x, inside_y, 
                    c='pink', marker='o', s=100, label='Inside Attackers')
-    if outside_attack_x:
-        plt.scatter(outside_attack_x, outside_attack_y, 
+    
+    outside_x, outside_y = classified_nodes['outside_attack']
+    if outside_x:
+        plt.scatter(outside_x, outside_y, 
                    c='red', marker='o', s=100, label='Outside Attackers')
+    
+    affected_x, affected_y = classified_nodes['affected']
+    if affected_x:
+        plt.scatter(affected_x, affected_y, 
+                   c='orange', marker='o', s=50, label='Affected Nodes')
     
     # BS 그리기
     plt.scatter(wsn_field.base_station['x'], wsn_field.base_station['y'],
@@ -195,7 +232,10 @@ def main():
     # 4. 결과 저장 및 시각화
     save_nodes_state(wsn_field, SAVE_FILE_NAME)
     print(f"\nAll nodes state has been saved to '{SAVE_FILE_NAME}'")
-    visualize_network(wsn_field)
+    
+    # 5. 노드 분류 및 시각화
+    classified_nodes = classify_wsn_nodes(wsn_field)
+    plot_wsn_network(wsn_field, classified_nodes)
 
 if __name__ == "__main__":
     main()

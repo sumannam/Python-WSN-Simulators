@@ -39,12 +39,17 @@ class Sensors:
             "network_info": self.get_network_info()
         }
 
-    def get_network_info(self) -> dict:
-        """네트워크 관련 정보 반환"""
+    def get_node_state_dict(self) -> dict:
+        """노드의 기본 정보 반환"""
         return {
-            "hop_count": self.hop_count,
-            "neighbor_nodes": self.neighbor_nodes.copy(),
-            "next_hop": self.next_hop,
-            "route_changes": self.route_changes,
-            "distance_to_bs": self.distance_to_bs
+            'node_id': self.node_id,
+            'pos_x': self.pos_x,
+            'pos_y': self.pos_y,
+            'status': self.status,
+            'node_type': self.node_type,
+            'hop_count': self.hop_count,
+            'next_hop': self.next_hop,
+            'neighbor_nodes': len(self.neighbor_nodes),
+            'route_changes': self.route_changes,
+            'distance_to_bs': self.distance_to_bs
         }
