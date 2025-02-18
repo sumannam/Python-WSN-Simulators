@@ -1,12 +1,12 @@
 import numpy as np
 
 class SinkholeAttack:
-    def __init__(self, field, attack_type="outside"):
+    def __init__(self, field, attack_type="outside", attack_range=200):
         self.field = field
         self.attack_type = attack_type
         self.malicious_nodes = []
         self.grid_size = 100
-        self.attack_range = 200  # 공격 영향 범위 (m)
+        self.attack_range = attack_range  # 전달받은 attack_range 사용
 
     def calculate_node_density(self):
         """필드를 4개 구역으로 나누고 각 구역의 노드 밀도 계산"""
@@ -80,13 +80,12 @@ class SinkholeAttack:
         attacker = self.field.nodes[attacker_id]
         affected_nodes = 0
         
-        # 공격자 노드를 가장 매력적인 라우팅 옵션으로 설정
+        # 공격자 노드의 라우팅 정보 설정
         attacker.hop_count = 1
         attacker.next_hop = "BS"
         attacker.energy_level = attacker.initial_energy
-        attacker.node_type = "malicious_outside"
         
-        # 공격 범위 내의 노드들에 대해 처리
+        # 주변 노드들의 라우팅을 강제로 공격자 노드로 변경
         for node_id, node in self.field.nodes.items():
             if node_id != attacker_id and node.node_type == "normal":
                 distance = np.sqrt(
@@ -95,25 +94,22 @@ class SinkholeAttack:
                 )
                 
                 if distance <= self.attack_range:
-                    # 양방향 이웃 관계 설정
-                    if attacker_id not in node.neighbor_nodes:
-                        node.neighbor_nodes.append(attacker_id)
-                    if node_id not in attacker.neighbor_nodes:
-                        attacker.neighbor_nodes.append(node_id)
-                    
-                    # 영향받은 노드의 라우팅 정보 수정
-                    old_next_hop = node.next_hop
                     node.next_hop = attacker_id
-                    node.hop_count = 2  # 공격자를 통한 경로가 항상 2홉
+                    node.hop_count = 2
                     node.node_type = "affected"
-                    
-                    # 라우팅 변경 기록
-                    if old_next_hop != attacker_id:
-                        node.route_changes += 1
                     affected_nodes += 1
         
         print(f"Attacker {attacker_id} affected {affected_nodes} nodes within {self.attack_range}m range")
 
+
+    def execute_attack(self, num_attackers=1):
+        if self.attack_type == "outside":
+            self.launch_outside_attack(num_attackers)
+        else:
+            self.launch_inside_attack(num_attackers)
+        
+        # routing.setup_routing() 호출 제거
+        return self.malicious_nodes
 
     def launch_outside_attack(self, num_attackers=2):
         """두 개의 구역에 공격자 배치"""
@@ -132,7 +128,7 @@ class SinkholeAttack:
             x, y, node_count = sorted_quadrants[i][1]
             
             # 위치에 약간의 랜덤성 추가
-            x += np.random.uniform(-50, 50)  # ±50m 범위 내 랜덤
+            x += np.random.uniform(-50, 50)
             y += np.random.uniform(-50, 50)
             
             print(f"Placing attacker in {quadrant} at ({x:.2f}, {y:.2f}), "
@@ -152,9 +148,6 @@ class SinkholeAttack:
             
             # 주변 노드들에 영향 주기
             self.affect_nodes_in_range(attacker_id)
-        
-        # 이웃 노드 재탐색
-        self.field.find_neighbors()
 
     def launch_inside_attack(self, num_attackers=1):
         """내부 노드를 공격자로 변환"""
@@ -194,31 +187,3 @@ class SinkholeAttack:
         
         # 이웃 노드 재탐색
         self.field.find_neighbors()
-
-    def execute_attack(self, num_attackers=1):
-        """싱크홀 공격 실행"""
-        if self.attack_type == "outside":
-            self.launch_outside_attack(num_attackers)
-        else:
-            self.launch_inside_attack(num_attackers)
-        
-        # 각 공격자 노드별로 영향권 설정
-        for attacker_id in self.malicious_nodes:
-            attacker = self.field.nodes[attacker_id]
-            attacker.node_type = "malicious_outside"
-            attacker.hop_count = 1
-            attacker.next_hop = "BS"
-            attacker.energy_level = attacker.initial_energy
-            self.affect_nodes_in_range(attacker_id)
-        
-        # 영향받은 노드들의 이웃들에 대해서도 라우팅 업데이트
-        for node_id, node in self.field.nodes.items():
-            if node.node_type == "affected":
-                for neighbor_id in node.neighbor_nodes:
-                    neighbor = self.field.nodes[neighbor_id]
-                    if (neighbor.node_type == "normal" and 
-                        neighbor.hop_count > node.hop_count + 1):
-                        neighbor.next_hop = node_id
-                        neighbor.hop_count = node.hop_count + 1
-        
-        return self.malicious_nodes

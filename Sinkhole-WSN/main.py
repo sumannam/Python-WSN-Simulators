@@ -18,6 +18,7 @@ BS_POSITION = (1000, 1000)  # 베이스 스테이션 위치 (x, y)
 ATTACK_TYPE = "outside"   # 공격 타입 ("outside" or "inside")
 NUM_ATTACKERS = 1         # 공격자 수
 ATTACK_TIMING = "50"      # 공격 시점 (보고서 발생 기준 "0", "30", "50", "70", "90")
+ATTACK_RANGE = 150        # 공격 영향 범위 (m)
 
 # Report Parameters
 NUM_REPORTS = 10         # 생성할 보고서 수
@@ -96,7 +97,7 @@ def plot_wsn_network(wsn_field, classified_nodes):
     for node in wsn_field.nodes.values():
         if node.node_type in ["malicious_outside", "malicious_inside"]:
             attack_range = plt.Circle((node.pos_x, node.pos_y), 
-                                    200, 
+                                    ATTACK_RANGE, 
                                     color='red', 
                                     fill=False, 
                                     linestyle='--', 
@@ -173,7 +174,7 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
     attack_point = int(num_reports * int(attack_timing) / 100)
     
     # 공격 객체 준비
-    attack = SinkholeAttack(wsn_field, attack_type=ATTACK_TYPE)
+    attack = SinkholeAttack(wsn_field, attack_type=ATTACK_TYPE, attack_range=ATTACK_RANGE)
 
     print(f"\nSimulating {NUM_REPORTS} Report Transmissions:")
     print("-" * 50)
@@ -190,8 +191,7 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
             print(f"Number of malicious nodes: {len(malicious_nodes)}")
             print(f"Malicious node IDs: {malicious_nodes}")
             
-            # 라우팅 재설정
-            routing.setup_routing()
+            # routing.setup_routing() 호출 제거
 
         # 보고서 전송
         result = routing.simulate_reports(1)[0]
