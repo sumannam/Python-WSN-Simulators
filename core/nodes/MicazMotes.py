@@ -1,4 +1,4 @@
-from Sensors import Sensors
+from core.nodes.Sensors import Sensors
 
 class MicazMotes(Sensors):
    def __init__(self, node_id: int, pos_x: float, pos_y: float):

@@ -1,6 +1,6 @@
 import numpy as np
 
-class SinkholeAttack:
+class Sinkhole:
     def __init__(self, field, attack_type="outside", attack_range=200):
         self.field = field
         self.attack_type = attack_type
@@ -136,7 +136,7 @@ class SinkholeAttack:
             
             # 공격자 노드 생성
             attacker_id = max(self.field.nodes.keys()) + 1
-            from MicazMotes import MicazMotes
+            from core.nodes.MicazMotes import MicazMotes
             attacker = MicazMotes(attacker_id, x, y)
             attacker.node_type = "malicious_outside"
             attacker.energy_level = attacker.initial_energy

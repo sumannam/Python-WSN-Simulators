@@ -4,9 +4,9 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 
-from Field import Field
-from ShortestPathRouting import ShortestPathRouting
-from SinkholeAttack import SinkholeAttack
+from core.Field import Field
+from core.routing.ShortestPathRouting import ShortestPathRouting
+from attacks.Sinkhole import Sinkhole
 
 # Simulation Parameters
 RANDOM_SEED = 42          # 랜덤 시드
@@ -174,7 +174,7 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
     attack_point = int(num_reports * int(attack_timing) / 100)
     
     # 공격 객체 준비
-    attack = SinkholeAttack(wsn_field, attack_type=ATTACK_TYPE, attack_range=ATTACK_RANGE)
+    attack = Sinkhole(wsn_field, attack_type=ATTACK_TYPE, attack_range=ATTACK_RANGE)
 
     print(f"\nSimulating {NUM_REPORTS} Report Transmissions:")
     print("-" * 50)

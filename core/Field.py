@@ -1,5 +1,5 @@
 import numpy as np
-from MicazMotes import MicazMotes
+from core.nodes.MicazMotes import MicazMotes
 
 class Field:
     def __init__(self, width: float, height: float):
