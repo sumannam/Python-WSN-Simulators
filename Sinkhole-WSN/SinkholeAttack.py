@@ -80,21 +80,34 @@ class SinkholeAttack:
         attacker = self.field.nodes[attacker_id]
         affected_nodes = 0
         
+        # 공격자 노드를 가장 매력적인 라우팅 옵션으로 설정
+        attacker.hop_count = 1
+        attacker.next_hop = "BS"
+        attacker.energy_level = attacker.initial_energy
+        attacker.node_type = "malicious_outside"
+        
+        # 공격 범위 내의 노드들에 대해 처리
         for node_id, node in self.field.nodes.items():
             if node_id != attacker_id and node.node_type == "normal":
-                # 노드와 공격자 사이의 거리 계산
                 distance = np.sqrt(
                     (node.pos_x - attacker.pos_x)**2 + 
                     (node.pos_y - attacker.pos_y)**2
                 )
                 
-                # 영향 범위 내에 있는 노드는 공격자를 next_hop으로 설정
                 if distance <= self.attack_range:
+                    # 양방향 이웃 관계 설정
+                    if attacker_id not in node.neighbor_nodes:
+                        node.neighbor_nodes.append(attacker_id)
+                    if node_id not in attacker.neighbor_nodes:
+                        attacker.neighbor_nodes.append(node_id)
+                    
+                    # 영향받은 노드의 라우팅 정보 수정
                     old_next_hop = node.next_hop
                     node.next_hop = attacker_id
-                    node.hop_count = 2
+                    node.hop_count = 2  # 공격자를 통한 경로가 항상 2홉
                     node.node_type = "affected"
-                    # 라우팅이 변경되었으므로 route_changes 증가
+                    
+                    # 라우팅 변경 기록
                     if old_next_hop != attacker_id:
                         node.route_changes += 1
                     affected_nodes += 1
@@ -188,14 +201,24 @@ class SinkholeAttack:
             self.launch_outside_attack(num_attackers)
         else:
             self.launch_inside_attack(num_attackers)
-            
-        # 각 공격자 노드에 대해 영향권 설정
+        
+        # 각 공격자 노드별로 영향권 설정
         for attacker_id in self.malicious_nodes:
+            attacker = self.field.nodes[attacker_id]
+            attacker.node_type = "malicious_outside"
+            attacker.hop_count = 1
+            attacker.next_hop = "BS"
+            attacker.energy_level = attacker.initial_energy
             self.affect_nodes_in_range(attacker_id)
         
-        # 전체 라우팅 재설정
-        from ShortestPathRouting import ShortestPathRouting
-        routing = ShortestPathRouting(self.field)
-        routing.setup_routing()
+        # 영향받은 노드들의 이웃들에 대해서도 라우팅 업데이트
+        for node_id, node in self.field.nodes.items():
+            if node.node_type == "affected":
+                for neighbor_id in node.neighbor_nodes:
+                    neighbor = self.field.nodes[neighbor_id]
+                    if (neighbor.node_type == "normal" and 
+                        neighbor.hop_count > node.hop_count + 1):
+                        neighbor.next_hop = node_id
+                        neighbor.hop_count = node.hop_count + 1
         
         return self.malicious_nodes
