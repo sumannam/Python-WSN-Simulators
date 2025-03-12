@@ -28,18 +28,33 @@ SAVE_FILE_NAME = 'final_nodes_state.csv'  # 결과 저장 파일명
 
 def save_nodes_state(wsn_field, filename='nodes_state.csv'):
     """전체 네트워크의 노드 상태를 CSV로 저장"""
-    folder_path = 'Sinkhole-WSN'
+    # 현재 스크립트 파일의 디렉토리 경로 가져오기
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # results 폴더 경로 생성
+    folder_path = os.path.join(script_dir, 'results')
+    
+    # 폴더가 없으면 생성
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        
     file_path = os.path.join(folder_path, filename)
 
     first_node = next(iter(wsn_field.nodes.values()))
     fieldnames = list(first_node.get_node_state_dict().keys())
     
-    with open(file_path, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
+    try:
+        with open(file_path, 'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for node in wsn_field.nodes.values():
+                writer.writerow(node.get_node_state_dict())
         
-        for node in wsn_field.nodes.values():
-            writer.writerow(node.get_node_state_dict())
+        print(f"파일이 성공적으로 저장되었습니다: {file_path}")
+    except Exception as e:
+        print(f"파일 저장 중 오류 발생: {e}")
+        print(f"시도한 경로: {file_path}")
 
 def classify_wsn_nodes(wsn_field):
     """WSN 노드들을 타입별로 분류"""
