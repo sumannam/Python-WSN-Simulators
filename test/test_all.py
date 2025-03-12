@@ -2,7 +2,6 @@ import sys
 import config
 import os
 import psutil
-
 import subprocess
 
 def test_build(file_name):
