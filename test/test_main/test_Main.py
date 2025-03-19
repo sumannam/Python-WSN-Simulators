@@ -2,7 +2,7 @@ import hashlib
 import os
 import unittest
 
-class test_main(unittest.TestCase):
+class test_Main(unittest.TestCase):
     """CSV 및 로그 파일 해시값 비교를 통한 무결성 테스트"""
     
     def setUp(self):
@@ -10,14 +10,16 @@ class test_main(unittest.TestCase):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         
         # 프로젝트 루트 디렉토리 (test 폴더의 상위 폴더)
-        self.project_root = os.path.dirname(self.current_dir)
+        self.project_root = os.path.abspath(os.path.join(self.current_dir, os.pardir))
+        self.project_root = os.path.abspath(os.path.join(self.project_root, os.pardir))
+        print(self.project_root)
         
         # 원본 CSV 파일과 새 CSV 파일 경로 (절대 경로로 명확하게 지정)
-        self.original_csv = os.path.join(self.current_dir, 'test_results', 'test_final_nodes_state.csv')
+        self.original_csv = os.path.join(self.project_root, 'test', 'test_results', 'test_final_nodes_state.csv')
         self.new_csv = os.path.join(self.project_root, 'results', 'final_nodes_state.csv')
         
         # 원본 로그 파일과 새 로그 파일 경로 (절대 경로로 명확하게 지정)
-        self.original_log = os.path.join(self.current_dir, 'test_results', 'test_simulation.log')
+        self.original_log = os.path.join(self.project_root, 'test', 'test_results', 'test_simulation.log')
         self.new_log = os.path.join(self.project_root, 'results', 'simulation.log')
         
         # 경로 출력 (디버깅용)
@@ -76,6 +78,3 @@ class test_main(unittest.TestCase):
         # 해시값 비교
         self.assertEqual(original_hash, new_hash, 
                          "로그 파일 해시값이 일치하지 않습니다. 파일이 변경되었습니다.")
-
-# if __name__ == '__main__':
-#     unittest.main()
