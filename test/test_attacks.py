@@ -11,23 +11,20 @@ parent_dir = os.path.dirname(current_dir)
 # 상위 디렉토리를 시스템 경로에 추가
 sys.path.insert(0, parent_dir)
 # test_core 디렉토리를 시스템 경로에 추가
-sys.path.insert(0, os.path.join(current_dir, 'test_core'))
+sys.path.insert(0, os.path.join(current_dir, 'test_attacks'))
 
 # print(sys.path)
 
-from test_Field import test_Field
-from test_MicazMotes import test_MicazMotes
+from test_Sinkhole import test_Sinkhole
 
 
-def test_core():
-    test_field = unittest.TestLoader().loadTestsFromTestCase(test_Field)
-    test_micazmotes = unittest.TestLoader().loadTestsFromTestCase(test_MicazMotes)
+def test_attacks():
+    test_sinkhole = unittest.TestLoader().loadTestsFromTestCase(test_Sinkhole)
 
     allTests = unittest.TestSuite()
     
-    allTests.addTest(test_field)
-    allTests.addTest(test_micazmotes)
+    allTests.addTest(test_sinkhole)
 
     unittest.TextTestRunner(verbosity=2, failfast=True).run(allTests)
 
-test_core()
+test_attacks()

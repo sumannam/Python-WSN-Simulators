@@ -77,5 +77,5 @@ class test_main(unittest.TestCase):
         self.assertEqual(original_hash, new_hash, 
                          "로그 파일 해시값이 일치하지 않습니다. 파일이 변경되었습니다.")
 
-if __name__ == '__main__':
-    unittest.main()
+# if __name__ == '__main__':
+#     unittest.main()
