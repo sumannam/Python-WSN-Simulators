@@ -2,14 +2,9 @@ import os
 import csv
 import numpy as np
 
-import threading
-from concurrent.futures import ThreadPoolExecutor
-from threading import Lock
-
 class ShortestPathRouting:
     def __init__(self, field):
         self.field = field
-        self.lock = Lock()  # 스레드 동기화를 위한 락
 
     def setup_routing(self):
         """BS까지의 최단 경로 설정"""
@@ -25,7 +20,10 @@ class ShortestPathRouting:
             
             # next_hop이 변경되면 route_changes 증가
             if old_next_hop is not None and old_next_hop != node.next_hop:
-                node.route_changes += 1
+                if hasattr(node, 'route_changes'):
+                    node.route_changes += 1
+                else:
+                    node.route_changes = 1
 
         bs_x = self.field.base_station['x']
         bs_y = self.field.base_station['y']
@@ -39,7 +37,10 @@ class ShortestPathRouting:
                     node.next_hop = "BS"
                     node.hop_count = 1
                     if old_next_hop != "BS":
-                        node.route_changes += 1
+                        if hasattr(node, 'route_changes'):
+                            node.route_changes += 1
+                        else:
+                            node.route_changes = 1
 
         # 나머지 노드들의 라우팅 설정
         changes_made = True
@@ -62,7 +63,10 @@ class ShortestPathRouting:
                         node.next_hop = best_next_hop
                         node.hop_count = min_hop_count + 1
                         if old_next_hop != best_next_hop:
-                            node.route_changes += 1
+                            if hasattr(node, 'route_changes'):
+                                node.route_changes += 1
+                            else:
+                                node.route_changes = 1
                         changes_made = True
 
     def _connect_direct_to_bs(self, unconnected_nodes, connected_nodes):
@@ -150,16 +154,14 @@ class ShortestPathRouting:
                 break
                 
         return path
-    
 
     def process_single_report(self, report_id):
-        """단일 보고서 처리 (스레드에서 실행)"""
+        """단일 보고서 처리"""
         packet_size = 32
         
         # 소스 노드 선택
-        with self.lock:  # 노드 선택 시 락 사용
-            available_nodes = list(self.field.nodes.keys())
-            source_node_id = np.random.choice(available_nodes)
+        available_nodes = list(self.field.nodes.keys())
+        source_node_id = np.random.choice(available_nodes)
         
         # 경로 추적
         path = self.get_path_to_bs(source_node_id)
@@ -167,14 +169,13 @@ class ShortestPathRouting:
         # 경로를 따라 패킷 전송 시뮬레이션
         for j in range(len(path)-1):
             current_id = int(path[j])
-            with self.lock:  # 노드 상태 변경 시 락 사용
-                current_node = self.field.nodes[current_id]
-                current_node.transmit_packet(packet_size)
+            current_node = self.field.nodes[current_id]
+            current_node.transmit_packet(packet_size)
                 
-                if path[j+1] != "BS":
-                    next_id = int(path[j+1])
-                    next_node = self.field.nodes[next_id]
-                    next_node.receive_packet(packet_size)
+            if path[j+1] != "BS":
+                next_id = int(path[j+1])
+                next_node = self.field.nodes[next_id]
+                next_node.receive_packet(packet_size)
         
         return {
             'report_id': report_id + 1,
@@ -184,19 +185,12 @@ class ShortestPathRouting:
         }
 
     def simulate_reports(self, num_reports):
-        """멀티스레드로 여러 보고서 전송 시뮬레이션"""
+        """순차적으로 여러 보고서 전송 시뮬레이션"""
         reports = []
-        max_workers = min(num_reports, os.cpu_count() * 2)  # 스레드 수 설정
         
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # 각 보고서를 별도의 스레드에서 처리
-            future_reports = [executor.submit(self.process_single_report, i) 
-                            for i in range(num_reports)]
-            
-            # 결과 수집
-            for future in future_reports:
-                reports.append(future.result())
+        # 각 보고서를 순차적으로 처리
+        for i in range(num_reports):
+            report = self.process_single_report(i)
+            reports.append(report)
         
-        # 보고서 ID 순서대로 정렬
-        reports.sort(key=lambda x: x['report_id'])
         return reports
