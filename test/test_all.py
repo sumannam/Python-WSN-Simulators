@@ -1,8 +1,9 @@
 import sys
-import config
 import os
 import psutil
 import subprocess
+
+from test_config import *
 
 def test_build(file_name):
     try:
@@ -13,4 +14,5 @@ def test_build(file_name):
 
 if __name__ == "__main__":
     # test_build('test\\test_engine.py')
-    test_build('test\\test_core.py')
+    test_build('test\\test_main.py')
+    test_build('test\\test_core.py')    

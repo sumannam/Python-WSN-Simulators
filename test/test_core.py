@@ -1,7 +1,8 @@
 import os
 import sys
-import config
 import unittest
+
+from test_config import *
 
 # 현재 디렉토리의 절대 경로 구하기
 current_dir = os.path.dirname(os.path.abspath(__file__))
