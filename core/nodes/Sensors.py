@@ -1,27 +1,32 @@
 class Sensors:
     """Sensors의 기본 노드 특성을 정의하는 기본 클래스"""
     def __init__(self, node_id: int, pos_x: float, pos_y: float):
-        # 기본 노드 속성
+        # 노드 기본 설정
         self.node_id = node_id
         self.pos_x = pos_x
         self.pos_y = pos_y
-        self.status = "active"     # active, inactive
         
-        # 네트워크 속성
-        self.node_type = "normal"  # normal, malicious
-        self.hop_count = 0
-        self.neighbor_nodes = []   
-        self.next_hop = None       
-        self.route_changes = 0     
-        self.distance_to_bs = 0    
+        # 기본 설정
+        self.status = "active"  # active/inactive
+        self.node_type = "normal"  # normal/malicious_inside/malicious_outside/affected
         
-        # 통신 카운터
-        self.tx_count = 0          
-        self.rx_count = 0          
-
+        # 통신 속성
+        self.neighbors = []  # 이웃 노드 ID 리스트
+        self.neighbor_nodes = []  # 이웃 노드 ID 리스트 (backward compatibility)
+        self.next_hop = None  # 다음 홉 (라우팅)
+        self.hop_count = float('inf')  # 베이스스테이션까지의 홉 수
+        self.route_changes = 0  # 라우팅 경로 변경 횟수
+        self.distance_to_bs = 0  # 베이스스테이션까지의 거리        
+        
+        # 패킷 카운터 초기화 - 모든 노드가 기본적으로 이 속성을 가지도록 함
+        self.tx_count = 0  # 전송 패킷 카운터
+        self.rx_count = 0  # 수신 패킷 카운터
+        
+        
     def get_location(self) -> tuple:
         """노드의 위치 반환"""
         return (self.pos_x, self.pos_y)
+
 
     def calculate_distance_to_bs(self, bs_x: float, bs_y: float) -> float:
         """베이스스테이션까지의 거리 계산"""
@@ -51,5 +56,7 @@ class Sensors:
             'next_hop': self.next_hop,
             'neighbor_nodes': len(self.neighbor_nodes),
             'route_changes': self.route_changes,
-            'distance_to_bs': self.distance_to_bs
+            'distance_to_bs': self.distance_to_bs,
+            'tx_count': self.tx_count,
+            'rx_count': self.rx_count            
         }

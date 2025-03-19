@@ -21,4 +21,4 @@ NUM_REPORTS = 100         # 생성할 보고서 수
 SAVE_FILE_NAME = 'final_nodes_state.csv'  # 결과 저장 파일명
 
 # 디버깅 모드 (True일 경우 상세 로그 출력)
-DEBUG_MODE = True
+DEBUG_MODE = False

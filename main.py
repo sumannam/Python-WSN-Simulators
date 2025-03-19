@@ -279,17 +279,35 @@ def analyze_network_statistics(wsn_field):
         if node.status == "active":
             active_nodes += 1
             
-        # 에너지 소비 및 패킷 카운트
-        total_energy += getattr(node, 'total_consumed_energy', 0)
+        # 에너지 소비 확인
+        node_energy = getattr(node, 'total_consumed_energy', 0)
+        total_energy += node_energy
         
-        tx_count = getattr(node, 'tx_count', 0)
-        rx_count = getattr(node, 'rx_count', 0)
+        # 디버깅을 위한 속성 출력
+        if DEBUG_MODE and node_id < 5:  # 처음 5개 노드만 출력
+            logger.debug(f"노드 {node_id}의 속성: {dir(node)}")
         
+        # tx_count와 rx_count 직접 확인 (안전하게 접근)
+        tx_count = 0
+        rx_count = 0
+        
+        # hasattr로 속성 존재 여부 확인 후 접근
+        if hasattr(node, 'tx_count'):
+            tx_count = node.tx_count
+        elif hasattr(node, 'transmit_count'):  # 다른 가능한 이름
+            tx_count = node.transmit_count
+            
+        if hasattr(node, 'rx_count'):
+            rx_count = node.rx_count
+        elif hasattr(node, 'receive_count'):  # 다른 가능한 이름
+            rx_count = node.receive_count
+        
+        # 총계에 더하기
         total_tx += tx_count
         total_rx += rx_count
         
-        # 에너지 소비 및 패킷 전송/수신이 있는 노드 추적
-        if getattr(node, 'total_consumed_energy', 0) > 0:
+        # 통계를 위한 노드 추적
+        if node_energy > 0:
             nodes_with_energy.append(node_id)
         if tx_count > 0:
             nodes_with_tx.append(node_id)
@@ -306,9 +324,31 @@ def analyze_network_statistics(wsn_field):
     logger.info(f"Nodes with TX: {len(nodes_with_tx)}/{len(wsn_field.nodes)} ({len(nodes_with_tx)/len(wsn_field.nodes)*100:.1f}%)")
     logger.info(f"Nodes with RX: {len(nodes_with_rx)}/{len(wsn_field.nodes)} ({len(nodes_with_rx)/len(wsn_field.nodes)*100:.1f}%)")
     
-    # 디버깅 모드일 경우 에너지 소비가 있는 노드 목록 출력
+    # 디버깅 모드일 경우 패킷 전송/수신 정보가 있는 노드 목록 출력
     if DEBUG_MODE:
-        logger.debug("\nNodes with Energy Consumption:")
+        logger.debug("\n----- 패킷 전송 정보가 있는 노드 -----")
+        tx_nodes_found = 0
+        for node_id in nodes_with_tx[:10]:  # 처음 10개만 출력
+            node = wsn_field.nodes[node_id]
+            tx_count = getattr(node, 'tx_count', 0)
+            logger.debug(f"Node {node_id}: TX={tx_count}")
+            tx_nodes_found += 1
+            
+        if tx_nodes_found == 0:
+            logger.debug("패킷 전송 정보가 있는 노드가 없습니다.")
+            
+        logger.debug("\n----- 패킷 수신 정보가 있는 노드 -----")
+        rx_nodes_found = 0
+        for node_id in nodes_with_rx[:10]:  # 처음 10개만 출력
+            node = wsn_field.nodes[node_id]
+            rx_count = getattr(node, 'rx_count', 0)
+            logger.debug(f"Node {node_id}: RX={rx_count}")
+            rx_nodes_found += 1
+            
+        if rx_nodes_found == 0:
+            logger.debug("패킷 수신 정보가 있는 노드가 없습니다.")
+        
+        logger.debug("\n----- 에너지 소비가 있는 노드 -----")
         for node_id in nodes_with_energy[:10]:  # 처음 10개만 출력
             node = wsn_field.nodes[node_id]
             energy = getattr(node, 'total_consumed_energy', 0)
