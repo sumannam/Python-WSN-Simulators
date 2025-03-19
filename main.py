@@ -3,28 +3,50 @@ import csv
 import time
 import matplotlib.pyplot as plt
 import numpy as np
+import logging  # 로깅 모듈 추가
 
 from core.Field import Field
 from core.routing.ShortestPathRouting import ShortestPathRouting
 from attacks.Sinkhole import Sinkhole
+from config import *
 
-# Simulation Parameters
-RANDOM_SEED = 42          # 랜덤 시드
-FIELD_SIZE = 2000         # 필드 크기 (m)
-NUM_NODES = 1000          # 센서 노드 수
-BS_POSITION = (1000, 1000)  # 베이스 스테이션 위치 (x, y)
 
-# Attack Parameters
-ATTACK_TYPE = "outside"   # 공격 타입 ("outside" or "inside")
-NUM_ATTACKERS = 1         # 공격자 수
-ATTACK_TIMING = "50"      # 공격 시점 (보고서 발생 기준 "0", "30", "50", "70", "90")
-ATTACK_RANGE = 150        # 공격 영향 범위 (m)
-
-# Report Parameters
-NUM_REPORTS = 10         # 생성할 보고서 수
-
-# Save Parameters
-SAVE_FILE_NAME = 'final_nodes_state.csv'  # 결과 저장 파일명
+# 로깅 설정
+def setup_logging():
+    """로깅 설정"""
+    log_level = logging.DEBUG if DEBUG_MODE else logging.INFO
+    
+    # 로거 설정
+    logger = logging.getLogger('wsn_simulation')  # 이 줄의 인덴테이션 수정 필요
+    logger.setLevel(log_level)
+    
+    # 이미 핸들러가 있으면 제거
+    if logger.handlers:
+        for handler in logger.handlers:
+            logger.removeHandler(handler)
+    
+    # 콘솔 핸들러
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+    
+    # 파일 핸들러 (results 폴더에 저장)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    log_folder = os.path.join(script_dir, 'results')
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+    file_handler = logging.FileHandler(os.path.join(log_folder, 'simulation.log'))
+    file_handler.setLevel(log_level)
+    
+    # 포맷 설정
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
+    
+    # 핸들러 추가
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+    
+    return logger
 
 def save_nodes_state(wsn_field, filename='nodes_state.csv'):
     """전체 네트워크의 노드 상태를 CSV로 저장"""
@@ -51,10 +73,10 @@ def save_nodes_state(wsn_field, filename='nodes_state.csv'):
             for node in wsn_field.nodes.values():
                 writer.writerow(node.get_node_state_dict())
         
-        print(f"파일이 성공적으로 저장되었습니다: {file_path}")
+        logger.info(f"파일이 성공적으로 저장되었습니다: {file_path}")
     except Exception as e:
-        print(f"파일 저장 중 오류 발생: {e}")
-        print(f"시도한 경로: {file_path}")
+        logger.error(f"파일 저장 중 오류 발생: {e}")
+        logger.error(f"시도한 경로: {file_path}")
 
 def classify_wsn_nodes(wsn_field):
     """WSN 노드들을 타입별로 분류"""
@@ -179,6 +201,14 @@ def plot_wsn_network(wsn_field, classified_nodes):
     plt.legend()
     plt.grid(True)
     plt.axis('equal')
+    
+    # 그래프 저장
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    plot_folder = os.path.join(script_dir, 'results')
+    if not os.path.exists(plot_folder):
+        os.makedirs(plot_folder)
+    plt.savefig(os.path.join(plot_folder, 'network_deployment.png'))
+    
     plt.show()
 
 def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
@@ -191,9 +221,9 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
     # 공격 객체 준비
     attack = Sinkhole(wsn_field, attack_type=ATTACK_TYPE, attack_range=ATTACK_RANGE)
 
-    print(f"\nSimulating {NUM_REPORTS} Report Transmissions:")
-    print("-" * 50)
-    print(f"Attack timing: {attack_timing}% (at report {attack_point})")
+    logger.info(f"\nSimulating {NUM_REPORTS} Report Transmissions:")
+    logger.info("-" * 50)
+    logger.info(f"Attack timing: {attack_timing}% (at report {attack_point})")
     
     start_time = time.time()
 
@@ -202,43 +232,156 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
         # 공격 시점에 도달하면 공격 실행
         if i == attack_point:
             malicious_nodes = attack.execute_attack(num_attackers=NUM_ATTACKERS)
-            print(f"\nSinkhole Attack Executed at {attack_timing}% of reports:")
-            print(f"Number of malicious nodes: {len(malicious_nodes)}")
-            print(f"Malicious node IDs: {malicious_nodes}")
+            logger.info(f"\nSinkhole Attack Executed at {attack_timing}% of reports:")
+            logger.info(f"Number of malicious nodes: {len(malicious_nodes)}")
+            logger.info(f"Malicious node IDs: {malicious_nodes}")
             
             # routing.setup_routing() 호출 제거
 
         # 보고서 전송
         result = routing.simulate_reports(1)[0]
         results.append(result)
+        
+        # 디버깅 모드일 경우 각 보고서 정보 출력
+        if DEBUG_MODE:
+            logger.debug(f"Report #{i+1}: Source Node {result['source_node']}, Path: {' -> '.join(map(str, result['path']))}")
 
         # 진행상황 출력 (10% 단위)
         if i % (num_reports // 10) == 0:
             progress = (i / num_reports) * 100
-            print(f"Simulation Progress: {progress:.1f}%")
+            logger.info(f"Simulation Progress: {progress:.1f}%")
 
     end_time = time.time()
     elapsed_time = end_time - start_time
 
-    print(f"\nSimulation Time Information:")
-    print(f"Total time elapsed: {elapsed_time:.4f} seconds")
-    print(f"Average time per report: {elapsed_time/num_reports:.4f} seconds")
+    logger.info(f"\nSimulation Time Information:")
+    logger.info(f"Total time elapsed: {elapsed_time:.4f} seconds")
+    logger.info(f"Average time per report: {elapsed_time/num_reports:.4f} seconds")
+
+    # 추가: 에너지 소비 및 패킷 전송/수신 통계
+    analyze_network_statistics(wsn_field)
 
     return results
 
+def analyze_network_statistics(wsn_field):
+    """네트워크 통계 분석 및 출력"""
+    total_energy = 0
+    total_tx = 0
+    total_rx = 0
+    active_nodes = 0
+    
+    # 에너지와 패킷 전송/수신 통계
+    nodes_with_energy = []
+    nodes_with_tx = []
+    nodes_with_rx = []
+    
+    for node_id, node in wsn_field.nodes.items():
+        if node.status == "active":
+            active_nodes += 1
+            
+        # 에너지 소비 확인
+        node_energy = getattr(node, 'total_consumed_energy', 0)
+        total_energy += node_energy
+        
+        # 디버깅을 위한 속성 출력
+        if DEBUG_MODE and node_id < 5:  # 처음 5개 노드만 출력
+            logger.debug(f"노드 {node_id}의 속성: {dir(node)}")
+        
+        # tx_count와 rx_count 직접 확인 (안전하게 접근)
+        tx_count = 0
+        rx_count = 0
+        
+        # hasattr로 속성 존재 여부 확인 후 접근
+        if hasattr(node, 'tx_count'):
+            tx_count = node.tx_count
+        elif hasattr(node, 'transmit_count'):  # 다른 가능한 이름
+            tx_count = node.transmit_count
+            
+        if hasattr(node, 'rx_count'):
+            rx_count = node.rx_count
+        elif hasattr(node, 'receive_count'):  # 다른 가능한 이름
+            rx_count = node.receive_count
+        
+        # 총계에 더하기
+        total_tx += tx_count
+        total_rx += rx_count
+        
+        # 통계를 위한 노드 추적
+        if node_energy > 0:
+            nodes_with_energy.append(node_id)
+        if tx_count > 0:
+            nodes_with_tx.append(node_id)
+        if rx_count > 0:
+            nodes_with_rx.append(node_id)
+    
+    # 통계 출력
+    logger.info("\n===== Network Statistics =====")
+    logger.info(f"Active Nodes: {active_nodes}/{len(wsn_field.nodes)}")
+    logger.info(f"Total Energy Consumed: {total_energy:.6f} Joules")
+    logger.info(f"Total TX Count: {total_tx}")
+    logger.info(f"Total RX Count: {total_rx}")
+    logger.info(f"Nodes with Energy Consumption: {len(nodes_with_energy)}/{len(wsn_field.nodes)} ({len(nodes_with_energy)/len(wsn_field.nodes)*100:.1f}%)")
+    logger.info(f"Nodes with TX: {len(nodes_with_tx)}/{len(wsn_field.nodes)} ({len(nodes_with_tx)/len(wsn_field.nodes)*100:.1f}%)")
+    logger.info(f"Nodes with RX: {len(nodes_with_rx)}/{len(wsn_field.nodes)} ({len(nodes_with_rx)/len(wsn_field.nodes)*100:.1f}%)")
+    
+    # 디버깅 모드일 경우 패킷 전송/수신 정보가 있는 노드 목록 출력
+    if DEBUG_MODE:
+        logger.debug("\n----- 패킷 전송 정보가 있는 노드 -----")
+        tx_nodes_found = 0
+        for node_id in nodes_with_tx[:10]:  # 처음 10개만 출력
+            node = wsn_field.nodes[node_id]
+            tx_count = getattr(node, 'tx_count', 0)
+            logger.debug(f"Node {node_id}: TX={tx_count}")
+            tx_nodes_found += 1
+            
+        if tx_nodes_found == 0:
+            logger.debug("패킷 전송 정보가 있는 노드가 없습니다.")
+            
+        logger.debug("\n----- 패킷 수신 정보가 있는 노드 -----")
+        rx_nodes_found = 0
+        for node_id in nodes_with_rx[:10]:  # 처음 10개만 출력
+            node = wsn_field.nodes[node_id]
+            rx_count = getattr(node, 'rx_count', 0)
+            logger.debug(f"Node {node_id}: RX={rx_count}")
+            rx_nodes_found += 1
+            
+        if rx_nodes_found == 0:
+            logger.debug("패킷 수신 정보가 있는 노드가 없습니다.")
+        
+        logger.debug("\n----- 에너지 소비가 있는 노드 -----")
+        for node_id in nodes_with_energy[:10]:  # 처음 10개만 출력
+            node = wsn_field.nodes[node_id]
+            energy = getattr(node, 'total_consumed_energy', 0)
+            tx = getattr(node, 'tx_count', 0)
+            rx = getattr(node, 'rx_count', 0)
+            logger.debug(f"Node {node_id}: Energy={energy:.8f}J, TX={tx}, RX={rx}")
+        
+        if len(nodes_with_energy) > 10:
+            logger.debug(f"... and {len(nodes_with_energy) - 10} more nodes")
+
 def main():
+    # 로깅 설정
+    global logger
+    logger = setup_logging()
+    
+    logger.info("==== WSN Simulation Start ====")
+    
     # 재현성을 위한 랜덤 시드 설정
     np.random.seed(RANDOM_SEED)
+    logger.debug(f"Random seed set to {RANDOM_SEED}")
 
     # 1. Field 설정
     wsn_field = Field(FIELD_SIZE, FIELD_SIZE)
     wsn_field.deploy_nodes(NUM_NODES)
     wsn_field.set_base_station(BS_POSITION[0], BS_POSITION[1])
     wsn_field.find_neighbors()
+    logger.info(f"Field created with {NUM_NODES} nodes, size {FIELD_SIZE}x{FIELD_SIZE}m")
+    logger.info(f"Base station set at position {BS_POSITION}")
 
     # 2. 라우팅 설정
     routing = ShortestPathRouting(wsn_field)
     routing.setup_routing()
+    logger.info("Routing setup completed")
 
     # 3. 시뮬레이션 실행 (공격 시점 고려)
     transmission_results = simulate_with_attack(wsn_field, routing, 
@@ -246,11 +389,13 @@ def main():
 
     # 4. 결과 저장 및 시각화
     save_nodes_state(wsn_field, SAVE_FILE_NAME)
-    print(f"\nAll nodes state has been saved to '{SAVE_FILE_NAME}'")
+    logger.info(f"All nodes state has been saved to '{SAVE_FILE_NAME}'")
     
     # 5. 노드 분류 및 시각화
     classified_nodes = classify_wsn_nodes(wsn_field)
     plot_wsn_network(wsn_field, classified_nodes)
+    
+    logger.info("==== WSN Simulation End ====")
 
 if __name__ == "__main__":
     main()

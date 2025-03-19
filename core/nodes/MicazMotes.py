@@ -25,10 +25,8 @@ class MicazMotes(Sensors):
        self.consumed_energy_tx = 0  # Joules
        self.consumed_energy_rx = 0  # Joules
        self.total_consumed_energy = 0  # Joules
-       
-       # 이웃 노드 관리
-       self.neighbor_nodes = []
 
+       
    def add_neighbor(self, neighbor_id: int):
        """이웃 노드 추가"""
        if neighbor_id not in self.neighbor_nodes:

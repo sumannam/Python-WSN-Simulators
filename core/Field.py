@@ -60,5 +60,5 @@ class Field:
     
     def create_node(self, node_id: int, pos_x: float, pos_y: float):
         """새로운 센서 노드 생성"""
-        from MicazMotes import MicazMotes
+        from nodes.MicazMotes import MicazMotes
         return MicazMotes(node_id, pos_x, pos_y)
