@@ -1,0 +1,261 @@
+import numpy as np
+from network_attack_base import NetworkAttackBase
+
+class Sinkhole(NetworkAttackBase):
+    """
+    Sinkhole attack implementation for wireless sensor networks.
+    In a sinkhole attack, malicious nodes advertise attractive routes
+    to attract traffic from other nodes.
+    """
+    
+    def __init__(self, field, attack_type="outside", attack_range=200):
+        """
+        Initialize the sinkhole attack.
+        
+        Parameters:
+        -----------
+        field : Field object
+            The field containing nodes to be attacked
+        attack_type : str
+            Type of attack ("outside" or "inside")
+        attack_range : int
+            Range of attack influence in meters
+        """
+        super().__init__(field, attack_type, attack_range)
+        self.grid_size = 100  # Grid size for density calculation
+    
+    def calculate_node_density(self):
+        """
+        Calculate node density in the field by dividing it into quadrants.
+        
+        Returns:
+        --------
+        dict: Best locations for placing attackers in each quadrant
+        """
+        density_map = {}
+        bs_x = self.field.base_station['x']
+        bs_y = self.field.base_station['y']
+        
+        # Divide field into 4 quadrants
+        quadrants = {
+            'Q1': {'x_range': (0, self.field.width/2), 'y_range': (self.field.height/2, self.field.height)},
+            'Q2': {'x_range': (self.field.width/2, self.field.width), 'y_range': (self.field.height/2, self.field.height)},
+            'Q3': {'x_range': (0, self.field.width/2), 'y_range': (0, self.field.height/2)},
+            'Q4': {'x_range': (self.field.width/2, self.field.width), 'y_range': (0, self.field.height/2)}
+        }
+        
+        # Calculate grid density for each quadrant
+        for quadrant, ranges in quadrants.items():
+            density_map[quadrant] = {}
+            
+            # Calculate quadrant center
+            quadrant_center_x = (ranges['x_range'][0] + ranges['x_range'][1]) / 2
+            quadrant_center_y = (ranges['y_range'][0] + ranges['y_range'][1]) / 2
+            
+            # Calculate grid density for nodes in this quadrant
+            for node in self.field.nodes.values():
+                if (ranges['x_range'][0] <= node.pos_x < ranges['x_range'][1] and 
+                    ranges['y_range'][0] <= node.pos_y < ranges['y_range'][1]):
+                    
+                    grid_x = int((node.pos_x - ranges['x_range'][0]) / self.grid_size)
+                    grid_y = int((node.pos_y - ranges['y_range'][0]) / self.grid_size)
+                    grid_key = (grid_x, grid_y)
+                    
+                    if grid_key not in density_map[quadrant]:
+                        density_map[quadrant][grid_key] = {
+                            'nodes': [],
+                            'center_x': ranges['x_range'][0] + (grid_x + 0.5) * self.grid_size,
+                            'center_y': ranges['y_range'][0] + (grid_y + 0.5) * self.grid_size,
+                            'distance_to_center': 0
+                        }
+                    
+                    density_map[quadrant][grid_key]['nodes'].append(node.node_id)
+                    
+                    # Calculate distance between grid center and quadrant center
+                    center_x = density_map[quadrant][grid_key]['center_x']
+                    center_y = density_map[quadrant][grid_key]['center_y']
+                    distance_to_center = np.sqrt(
+                        (center_x - quadrant_center_x)**2 + 
+                        (center_y - quadrant_center_y)**2
+                    )
+                    density_map[quadrant][grid_key]['distance_to_center'] = distance_to_center
+        
+        # Select the most appropriate location in each quadrant
+        best_locations = {}
+        for quadrant in quadrants:
+            if density_map[quadrant]:
+                # Choose grids with many nodes and close to center
+                grids = sorted(
+                    density_map[quadrant].items(),
+                    key=lambda x: (len(x[1]['nodes']) / (x[1]['distance_to_center'] + 1)),
+                    reverse=True
+                )
+                if grids:
+                    best_locations[quadrant] = (grids[0][1]['center_x'], 
+                                          grids[0][1]['center_y'], 
+                                          len(grids[0][1]['nodes']))
+        
+        return best_locations
+    
+    def affect_nodes_in_range(self, attacker_id):
+        """
+        Make nodes within range of the attacker affected by it.
+        
+        Parameters:
+        -----------
+        attacker_id : int
+            ID of the attacker node
+        
+        Returns:
+        --------
+        int: Number of affected nodes
+        """
+        attacker = self.field.nodes[attacker_id]
+        affected_nodes = 0
+        
+        # Set routing info for attacker node
+        attacker.hop_count = 1
+        attacker.next_hop = "BS"
+        attacker.energy_level = attacker.initial_energy
+        
+        # Force nearby nodes to route through attacker
+        for node_id, node in self.field.nodes.items():
+            if node_id != attacker_id and node.node_type == "normal":
+                if self.is_node_in_range(node_id, attacker_id):
+                    node.next_hop = attacker_id
+                    node.hop_count = 2
+                    node.node_type = "affected"
+                    affected_nodes += 1
+        
+        print(f"Attacker {attacker_id} affected {affected_nodes} nodes within {self.attack_range}m range")
+        return affected_nodes
+    
+    def execute_attack(self, num_attackers=1):
+        """
+        Execute the sinkhole attack by placing malicious nodes.
+        
+        Parameters:
+        -----------
+        num_attackers : int
+            Number of attackers to place
+            
+        Returns:
+        --------
+        list: IDs of malicious nodes
+        """
+        if self.attack_type == "outside":
+            self.launch_outside_attack(num_attackers)
+        else:
+            self.launch_inside_attack(num_attackers)
+        
+        # Modify routing tables after attack
+        self.modify_routing_info()
+        
+        return self.malicious_nodes
+    
+    def launch_outside_attack(self, num_attackers=2):
+        """
+        Place attackers outside the network in dense areas.
+        
+        Parameters:
+        -----------
+        num_attackers : int
+            Number of attackers to place
+        """
+        best_locations = self.calculate_node_density()
+        
+        # Sort quadrants by node count
+        sorted_quadrants = sorted(
+            best_locations.items(),
+            key=lambda x: x[1][2],  # x[1][2] is the node count
+            reverse=True
+        )
+        
+        # Place attackers in the top quadrants
+        for i in range(min(num_attackers, len(sorted_quadrants))):
+            quadrant = sorted_quadrants[i][0]
+            x, y, node_count = sorted_quadrants[i][1]
+            
+            # Add some randomness to position
+            x += np.random.uniform(-50, 50)
+            y += np.random.uniform(-50, 50)
+            
+            print(f"Placing attacker in {quadrant} at ({x:.2f}, {y:.2f}), "
+                  f"nearby nodes: {node_count}")
+            
+            # Create attacker node
+            attacker_id = max(self.field.nodes.keys()) + 1
+            from core.nodes.MicazMotes import MicazMotes
+            attacker = MicazMotes(attacker_id, x, y)
+            attacker.node_type = "malicious_outside"
+            attacker.energy_level = attacker.initial_energy
+            attacker.next_hop = "BS"
+            attacker.hop_count = 1
+            
+            self.field.nodes[attacker_id] = attacker
+            self.add_malicious_node(attacker_id)
+            
+            # Affect nearby nodes
+            self.affect_nodes_in_range(attacker_id)
+
+    def launch_inside_attack(self, num_attackers=1):
+        """
+        Convert existing nodes into malicious nodes.
+        
+        Parameters:
+        -----------
+        num_attackers : int
+            Number of attackers to place
+        """
+        best_locations = self.calculate_node_density()
+        candidate_nodes = []
+        
+        # Select nodes from dense areas as candidates
+        for quadrant, location in best_locations.items():
+            # Find nodes close to the best location
+            for node_id, node in self.field.nodes.items():
+                if node.node_type == "normal":
+                    distance = np.sqrt(
+                        (node.pos_x - location[0])**2 + 
+                        (node.pos_y - location[1])**2
+                    )
+                    if distance <= self.grid_size:
+                        candidate_nodes.append(node_id)
+            
+            # Get enough candidates
+            if len(candidate_nodes) >= num_attackers * 3:
+                break
+        
+        # Randomly select from candidates
+        if len(candidate_nodes) > 0:
+            target_nodes = np.random.choice(candidate_nodes, 
+                                          size=min(num_attackers, len(candidate_nodes)), 
+                                          replace=False)
+            
+            for node_id in target_nodes:
+                node = self.field.nodes[node_id]
+                node.node_type = "malicious_inside"
+                node.energy_level = node.initial_energy
+                node.next_hop = "BS"
+                node.hop_count = 1
+                self.add_malicious_node(node_id)
+                print(f"Converting node {node_id} at ({node.pos_x:.2f}, {node.pos_y:.2f}) to malicious")
+        else:
+            print("No suitable nodes found for inside attack")
+            
+    def modify_routing_info(self):
+        """
+        Modify routing information for malicious nodes and affected nodes.
+        """
+        for attacker_id in self.malicious_nodes:
+            # Set up attacker node
+            attacker = self.field.nodes[attacker_id]
+            attacker.hop_count = 1
+            attacker.next_hop = "BS"
+            
+            # Update influence on nearby nodes for outside attacks
+            if attacker.node_type == "malicious_outside":
+                self.affect_nodes_in_range(attacker_id)
+        
+        # Refresh neighbor discovery
+        self.field.find_neighbors()
