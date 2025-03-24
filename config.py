@@ -11,7 +11,7 @@ BS_POSITION = (500, 500)  # 베이스 스테이션 위치 (x, y)
 # Attack Parameters
 ATTACK_TYPE = "inside"   # 공격 타입 ("outside" or "inside")
 NUM_ATTACKERS = 1         # 공격자 수
-ATTACK_TIMING = "90"      # 공격 시점 (보고서 발생 기준 "0", "30", "50", "70", "90")
+ATTACK_TIMING = "0"      # 공격 시점 (보고서 발생 기준 "0", "30", "50", "70", "90")
 ATTACK_RANGE = 150        # 공격 영향 범위 (m)
 
 # Report Parameters
@@ -21,4 +21,4 @@ NUM_REPORTS = 100         # 생성할 보고서 수
 SAVE_FILE_NAME = 'final_nodes_state.csv'  # 결과 저장 파일명
 
 # 디버깅 모드 (True일 경우 상세 로그 출력)
-DEBUG_MODE = True
+DEBUG_MODE = False
