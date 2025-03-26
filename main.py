@@ -6,7 +6,10 @@ import numpy as np
 import logging  # 로깅 모듈 추가
 
 from core.Field import Field
-from core.routing.ShortestPathRouting import ShortestPathRouting
+
+from core.routing.BaseRoutingProtocol import BaseRoutingProtocol
+from core.routing.DijkstraRouting import DijkstraRouting
+
 from attacks.Sinkhole import Sinkhole
 from config import *
 
@@ -17,7 +20,7 @@ def setup_logging():
     log_level = logging.DEBUG if DEBUG_MODE else logging.INFO
     
     # 로거 설정
-    logger = logging.getLogger('wsn_simulation')  # 이 줄의 인덴테이션 수정 필요
+    logger = logging.getLogger('wsn_simulation')
     logger.setLevel(log_level)
     
     # 이미 핸들러가 있으면 제거
@@ -359,6 +362,21 @@ def analyze_network_statistics(wsn_field):
         if len(nodes_with_energy) > 10:
             logger.debug(f"... and {len(nodes_with_energy) - 10} more nodes")
 
+def get_routing_protocol(protocol_name, wsn_field):
+    """선택한 라우팅 프로토콜을 반환"""
+    protocol_name = protocol_name.lower()
+    
+    if protocol_name == "dijkstra":
+        return DijkstraRouting(wsn_field)
+    # 나중에 다른 프로토콜을 추가할 수 있음
+    # elif protocol_name == "aodv":
+    #     return AODVRouting(wsn_field)
+    # elif protocol_name == "leach":
+    #     return LEACHRouting(wsn_field)
+    else:
+        logger.warning(f"Unknown routing protocol '{protocol_name}'. Using Dijkstra as default.")
+        return DijkstraRouting(wsn_field)
+
 def main():
     # 로깅 설정
     global logger
@@ -378,10 +396,10 @@ def main():
     logger.info(f"Field created with {NUM_NODES} nodes, size {FIELD_SIZE}x{FIELD_SIZE}m")
     logger.info(f"Base station set at position {BS_POSITION}")
 
-    # 2. 라우팅 설정
-    routing = ShortestPathRouting(wsn_field)
+    # 2. 라우팅 프로토콜 선택 및 설정
+    routing = get_routing_protocol(ROUTING_PROTOCOL, wsn_field)
     routing.setup_routing()
-    logger.info("Routing setup completed")
+    logger.info(f"Routing setup completed using {ROUTING_PROTOCOL} protocol")
 
     # 3. 시뮬레이션 실행 (공격 시점 고려)
     transmission_results = simulate_with_attack(wsn_field, routing, 
