@@ -8,6 +8,9 @@ FIELD_SIZE = 2000         # 필드 크기 (m)
 NUM_NODES = 1000          # 센서 노드 수
 BS_POSITION = (1000, 1000)  # 베이스 스테이션 위치 (x, y)
 
+# Routing Parameters
+ROUTING_PROTOCOL = "dijkstra"  # 라우팅 프로토콜 타입 ("dijkstra", "LEACH")
+
 # Attack Parameters
 ATTACK_TYPE = "outside"   # 공격 타입 ("outside" or "inside")
 NUM_ATTACKERS = 1         # 공격자 수

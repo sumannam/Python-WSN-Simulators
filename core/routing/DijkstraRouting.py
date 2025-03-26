@@ -1,13 +1,12 @@
-import os
-import csv
-import numpy as np
+from core.routing.BaseRoutingProtocol import BaseRoutingProtocol
 
-class ShortestPathRouting:
+
+class DijkstraRouting(BaseRoutingProtocol):
     def __init__(self, field):
-        self.field = field
+        super().__init__(field)
 
     def setup_routing(self):
-        """BS까지의 최단 경로 설정"""
+        """BS까지의 최단 경로 설정 - Dijkstra 알고리즘 기반"""
         if not self.field.base_station:
             print("Base station not set. Cannot setup routing.")
             return
@@ -29,6 +28,16 @@ class ShortestPathRouting:
         bs_y = self.field.base_station['y']
 
         # BS와 직접 연결 가능한 일반 노드들 처리
+        self._connect_direct_to_bs()
+            
+        # 나머지 노드들의 라우팅 설정 (Dijkstra 알고리즘 기반)
+        self._apply_dijkstra_routing()
+
+    def _connect_direct_to_bs(self):
+        """BS와 직접 연결 가능한 노드들 처리"""
+        bs_x = self.field.base_station['x']
+        bs_y = self.field.base_station['y']
+        
         for node_id, node in self.field.nodes.items():
             if node.node_type == "normal":
                 dist_to_bs = ((node.pos_x - bs_x)**2 + (node.pos_y - bs_y)**2)**0.5
@@ -42,7 +51,8 @@ class ShortestPathRouting:
                         else:
                             node.route_changes = 1
 
-        # 나머지 노드들의 라우팅 설정
+    def _apply_dijkstra_routing(self):
+        """Dijkstra 알고리즘을 사용한 라우팅 적용"""
         changes_made = True
         while changes_made:
             changes_made = False
@@ -69,22 +79,8 @@ class ShortestPathRouting:
                                 node.route_changes = 1
                         changes_made = True
 
-    def _connect_direct_to_bs(self, unconnected_nodes, connected_nodes):
-        """BS와 직접 연결 가능한 노드들 처리"""
-        bs_x = self.field.base_station['x']
-        bs_y = self.field.base_station['y']
-        
-        for node_id in list(unconnected_nodes):
-            node = self.field.nodes[node_id]
-            dist_to_bs = ((node.pos_x - bs_x)**2 + (node.pos_y - bs_y)**2)**0.5
-            
-            if dist_to_bs <= node.comm_range:
-                node.next_hop = "BS"
-                unconnected_nodes.remove(node_id)
-                connected_nodes.add(node_id)
-
-    def _connect_remaining_nodes(self, unconnected_nodes, connected_nodes):
-        """나머지 노드들 처리"""
+    def _connect_nodes_iteratively(self, unconnected_nodes, connected_nodes):
+        """연결되지 않은 노드들을 반복적으로 연결하는 확장 메서드"""
         while unconnected_nodes:
             nodes_connected_this_round = self._connect_nodes_one_round(
                 unconnected_nodes, connected_nodes)
@@ -130,67 +126,3 @@ class ShortestPathRouting:
                     best_next_hop = neighbor_id
 
         return best_next_hop
-
-    def _extend_communication_range(self):
-        """통신 범위 확장"""
-        extended_range = self.field.nodes[next(iter(self.field.nodes))].comm_range * 1.2
-        for node in self.field.nodes.values():
-            node.comm_range = extended_range
-        self.field.find_neighbors()
-
-    def get_path_to_bs(self, node_id):
-        """특정 노드에서 BS까지의 경로 추적"""
-        path = []
-        current_id = node_id
-        
-        while current_id is not None:
-            path.append(str(current_id))
-            if current_id not in self.field.nodes:
-                break
-            current_node = self.field.nodes[current_id]
-            current_id = current_node.next_hop
-            if current_id == "BS":
-                path.append("BS")
-                break
-                
-        return path
-
-    def process_single_report(self, report_id):
-        """단일 보고서 처리"""
-        packet_size = 32
-        
-        # 소스 노드 선택
-        available_nodes = list(self.field.nodes.keys())
-        source_node_id = np.random.choice(available_nodes)
-        
-        # 경로 추적
-        path = self.get_path_to_bs(source_node_id)
-        
-        # 경로를 따라 패킷 전송 시뮬레이션
-        for j in range(len(path)-1):
-            current_id = int(path[j])
-            current_node = self.field.nodes[current_id]
-            current_node.transmit_packet(packet_size)
-                
-            if path[j+1] != "BS":
-                next_id = int(path[j+1])
-                next_node = self.field.nodes[next_id]
-                next_node.receive_packet(packet_size)
-        
-        return {
-            'report_id': report_id + 1,
-            'source_node': source_node_id,
-            'path': path,
-            'source_energy': self.field.nodes[source_node_id].energy_level
-        }
-
-    def simulate_reports(self, num_reports):
-        """순차적으로 여러 보고서 전송 시뮬레이션"""
-        reports = []
-        
-        # 각 보고서를 순차적으로 처리
-        for i in range(num_reports):
-            report = self.process_single_report(i)
-            reports.append(report)
-        
-        return reports
