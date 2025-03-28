@@ -198,7 +198,12 @@ def plot_wsn_network(wsn_field, classified_nodes):
     plt.title('WSN Node Deployment with Sinkhole Attacks')
     plt.xlabel('Field Width (m)')
     plt.ylabel('Field Height (m)')
-    plt.legend()
+    
+    # 범례를 오른쪽 하단에 위치시키고 속성 조정
+    plt.legend(loc='lower right', framealpha=0.9, frameon=True, 
+              fontsize='medium', markerscale=0.8, 
+              bbox_to_anchor=(0.99, 0.01))
+    
     plt.grid(True)
     plt.axis('equal')
     
@@ -207,7 +212,8 @@ def plot_wsn_network(wsn_field, classified_nodes):
     plot_folder = os.path.join(script_dir, 'results')
     if not os.path.exists(plot_folder):
         os.makedirs(plot_folder)
-    plt.savefig(os.path.join(plot_folder, 'network_deployment.png'))
+    plt.savefig(os.path.join(plot_folder, 'network_deployment.png'), 
+               bbox_inches='tight', dpi=300)
     
     plt.show()
 

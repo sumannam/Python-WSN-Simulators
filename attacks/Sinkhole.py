@@ -162,16 +162,22 @@ class Sinkhole:
         
         # 후보 중에서 랜덤하게 선택
         target_nodes = np.random.choice(candidate_nodes, 
-                                      size=num_attackers, 
-                                      replace=False)
+                                    size=num_attackers, 
+                                    replace=False)
         
         for node_id in target_nodes:
-            node = self.field.nodes[node_id]
+            # node_id를 정수형으로 변환
+            int_node_id = int(node_id)
+            node = self.field.nodes[int_node_id]
             node.node_type = "malicious_inside"
             node.energy_level = node.initial_energy
             node.next_hop = "BS"
             node.hop_count = 1
-            self.malicious_nodes.append(node_id)
+            # 저장할 때도 정수형으로 저장
+            self.malicious_nodes.append(int_node_id)
+            
+            # 내부 공격자도 주변 노드에 영향 주기
+            self.affect_nodes_in_range(int_node_id)
 
     def modify_routing_info(self):
         """공격자 노드의 라우팅 정보 조작 및 주변 노드 영향"""
