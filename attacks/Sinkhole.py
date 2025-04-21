@@ -1,12 +1,29 @@
 import numpy as np
+from .network_attack_base import NetworkAttackBase
 
-class Sinkhole:
+class Sinkhole(NetworkAttackBase):
+    """
+    Sinkhole attack implementation for wireless sensor networks.
+    In a sinkhole attack, malicious nodes advertise attractive routes
+    to attract traffic from other nodes.
+    """
+    
     def __init__(self, field, attack_type="outside", attack_range=200):
-        self.field = field
-        self.attack_type = attack_type
+        """
+        Initialize the sinkhole attack.
+        
+        Parameters:
+        -----------
+        field : Field object
+            The field containing nodes to be attacked
+        attack_type : str
+            Type of attack ("outside" or "inside")
+        attack_range : int
+            Range of attack influence in meters
+        """
+        super().__init__(field, attack_type, attack_range)
+        self.grid_size = 100  # Grid size for density calculation
         self.malicious_nodes = []
-        self.grid_size = 100
-        self.attack_range = attack_range  # 전달받은 attack_range 사용
 
     def calculate_node_density(self):
         """필드를 4개 구역으로 나누고 각 구역의 노드 밀도 계산"""

@@ -21,76 +21,10 @@ from core.routing.BaseRoutingProtocol import BaseRoutingProtocol
 from core.routing.DijkstraRouting import DijkstraRouting
 
 from attacks.Sinkhole import Sinkhole
-from utils.visualize_network import plot_wsn_network, animate_report_transmission
+from utils.visualize_network import plot_wsn_network, animate_report_transmission, classify_wsn_nodes, setup_logging
+from utils.data_handler import save_nodes_state, save_simulation_results
 from config import *
 
-
-# 로깅 설정
-def setup_logging():
-    """로깅 설정"""
-    log_level = logging.DEBUG if DEBUG_MODE else logging.INFO
-    
-    # 로거 설정
-    logger = logging.getLogger('wsn_simulation')
-    logger.setLevel(log_level)
-    
-    # 이미 핸들러가 있으면 제거
-    if logger.handlers:
-        for handler in logger.handlers:
-            logger.removeHandler(handler)
-    
-    # 콘솔 핸들러
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(log_level)
-    
-    # 파일 핸들러 (results 폴더에 저장)
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    log_folder = os.path.join(script_dir, 'results')
-    if not os.path.exists(log_folder):
-        os.makedirs(log_folder)
-    file_handler = logging.FileHandler(os.path.join(log_folder, 'simulation.log'))
-    file_handler.setLevel(log_level)
-    
-    # 포맷 설정
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(formatter)
-    file_handler.setFormatter(formatter)
-    
-    # 핸들러 추가
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
-    
-    return logger
-
-def save_nodes_state(wsn_field, filename='nodes_state.csv'):
-    """전체 네트워크의 노드 상태를 CSV로 저장"""
-    # 현재 스크립트 파일의 디렉토리 경로 가져오기
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # results 폴더 경로 생성
-    folder_path = os.path.join(script_dir, 'results')
-    
-    # 폴더가 없으면 생성
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-        
-    file_path = os.path.join(folder_path, filename)
-
-    first_node = next(iter(wsn_field.nodes.values()))
-    fieldnames = list(first_node.get_node_state_dict().keys())
-    
-    try:
-        with open(file_path, 'w', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            
-            for node in wsn_field.nodes.values():
-                writer.writerow(node.get_node_state_dict())
-        
-        logger.info(f"파일이 성공적으로 저장되었습니다: {file_path}")
-    except Exception as e:
-        logger.error(f"파일 저장 중 오류 발생: {e}")
-        logger.error(f"시도한 경로: {file_path}")
 
 def classify_wsn_nodes(wsn_field):
     """WSN 노드들을 타입별로 분류"""
@@ -451,67 +385,9 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
     logger.info(f"Total valid reports generated: {len(results)}")
 
     # 추가: 에너지 소비 및 패킷 전송/수신 통계
-    analyze_network_statistics(wsn_field)
+    attack.analyze_network_statistics()
 
     return results
-
-def analyze_network_statistics(wsn_field):
-    """네트워크 통계 분석 및 출력"""
-    total_energy = 0
-    total_tx = 0
-    total_rx = 0
-    active_nodes = 0
-    
-    # 에너지와 패킷 전송/수신 통계
-    nodes_with_energy = []
-    nodes_with_tx = []
-    nodes_with_rx = []
-    
-    for node_id, node in wsn_field.nodes.items():
-        if node.status == "active":
-            active_nodes += 1
-            
-        # 에너지 소비 확인
-        node_energy = getattr(node, 'total_consumed_energy', 0)
-        total_energy += node_energy
-        
-        # tx_count와 rx_count 직접 확인 (안전하게 접근)
-        tx_count = 0
-        rx_count = 0
-        
-        # hasattr로 속성 존재 여부 확인 후 접근
-        if hasattr(node, 'tx_count'):
-            tx_count = node.tx_count
-        elif hasattr(node, 'transmit_count'):  # 다른 가능한 이름
-            tx_count = node.transmit_count
-            
-        if hasattr(node, 'rx_count'):
-            rx_count = node.rx_count
-        elif hasattr(node, 'receive_count'):  # 다른 가능한 이름
-            rx_count = node.receive_count
-        
-        # 총계에 더하기
-        total_tx += tx_count
-        total_rx += rx_count
-        
-        # 통계를 위한 노드 추적
-        if node_energy > 0:
-            nodes_with_energy.append(node_id)
-        if tx_count > 0:
-            nodes_with_tx.append(node_id)
-        if rx_count > 0:
-            nodes_with_rx.append(node_id)
-    
-    # 통계 출력
-    logger.info("\n===== Network Statistics =====")
-    logger.info(f"Active Nodes: {active_nodes}/{len(wsn_field.nodes)}")
-    logger.info(f"Total Energy Consumed: {total_energy:.6f} Joules")
-    logger.info(f"Total TX Count: {total_tx}")
-    logger.info(f"Total RX Count: {total_rx}")
-    logger.info(f"Nodes with Energy Consumption: {len(nodes_with_energy)}/{len(wsn_field.nodes)} ({len(nodes_with_energy)/len(wsn_field.nodes)*100:.1f}%)")
-    logger.info(f"Nodes with TX: {len(nodes_with_tx)}/{len(wsn_field.nodes)} ({len(nodes_with_tx)/len(wsn_field.nodes)*100:.1f}%)")
-    logger.info(f"Nodes with RX: {len(nodes_with_rx)}/{len(wsn_field.nodes)} ({len(nodes_with_rx)/len(wsn_field.nodes)*100:.1f}%)")
-    
 
 def get_routing_protocol(protocol_name, wsn_field):
     """선택한 라우팅 프로토콜을 반환"""
@@ -558,6 +434,7 @@ def main():
 
     # 4. 결과 저장 및 시각화
     save_nodes_state(wsn_field, SAVE_FILE_NAME)
+    save_simulation_results(transmission_results, 'simulation_results.csv')
     logger.info(f"All nodes state has been saved to '{SAVE_FILE_NAME}'")
     
     # 5. 노드 분류
