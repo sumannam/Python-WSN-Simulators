@@ -81,7 +81,10 @@ class Sinkhole:
         affected_nodes = 0
         
         # 공격자 노드의 라우팅 정보 설정
-        attacker.hop_count = 1
+        if attacker.node_type == "malicious_outside":
+            attacker.hop_count = 0  # malicious_outside는 BS와 직접 연결된다고 광고
+        else:
+            attacker.hop_count = 1
         attacker.next_hop = "BS"
         attacker.energy_level = attacker.initial_energy
         
@@ -95,7 +98,8 @@ class Sinkhole:
                 
                 if distance <= self.attack_range:
                     node.next_hop = attacker_id
-                    node.hop_count = 2
+                    # 공격 범위 내의 모든 노드는 malicious node와 1-hop 거리로 설정
+                    node.hop_count = 1
                     node.node_type = "affected"
                     affected_nodes += 1
         
@@ -141,7 +145,7 @@ class Sinkhole:
             attacker.node_type = "malicious_outside"
             attacker.energy_level = attacker.initial_energy
             attacker.next_hop = "BS"
-            attacker.hop_count = 1
+            attacker.hop_count = 0  # malicious_outside는 hop_count를 0으로 설정
             
             self.field.nodes[attacker_id] = attacker
             self.malicious_nodes.append(attacker_id)
@@ -184,7 +188,10 @@ class Sinkhole:
         for attacker_id in self.malicious_nodes:
             # 공격자 노드 설정
             attacker = self.field.nodes[attacker_id]
-            attacker.hop_count = 1
+            if attacker.node_type == "malicious_outside":
+                attacker.hop_count = 0
+            else:
+                attacker.hop_count = 1
             attacker.next_hop = "BS"
             
             # 외부 공격의 경우 주변 노드들에 대한 영향 갱신

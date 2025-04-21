@@ -1,0 +1,4 @@
+matplotlib>=3.7.1
+numpy>=1.24.3
+pillow>=9.5.0  # For animation saving
+seaborn>=0.12.0  # For better plotting styles 
