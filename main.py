@@ -178,35 +178,73 @@ def plot_wsn_network(wsn_field, classified_nodes):
                         alpha=0.8 if is_affected else 0.3,
                         linewidth=2 if is_affected else 1)
     
-    # 노드 그리기
+    # 노드 그리기 및 노드 ID 표시
     normal_x, normal_y, normal_colors = classified_nodes['normal']
     if normal_x:
         plt.scatter(normal_x, normal_y, 
                    c=normal_colors, marker='o', s=50, label='Normal Nodes')
+        # 일반 노드 ID 표시
+        for i, (x, y) in enumerate(zip(normal_x, normal_y)):
+            for node_id, node in wsn_field.nodes.items():
+                if node.pos_x == x and node.pos_y == y:
+                    plt.annotate(str(node_id), (x, y), 
+                               xytext=(5, 5), textcoords='offset points',
+                               fontsize=8, alpha=0.7)
     
     dead_x, dead_y = classified_nodes['dead']
     if dead_x:
         plt.scatter(dead_x, dead_y, 
                    c='black', marker='o', s=50, label='Dead Nodes')
+        # 죽은 노드 ID 표시
+        for i, (x, y) in enumerate(zip(dead_x, dead_y)):
+            for node_id, node in wsn_field.nodes.items():
+                if node.pos_x == x and node.pos_y == y:
+                    plt.annotate(str(node_id), (x, y), 
+                               xytext=(5, 5), textcoords='offset points',
+                               fontsize=8, alpha=0.7)
     
     inside_x, inside_y = classified_nodes['inside_attack']
     if inside_x:
         plt.scatter(inside_x, inside_y, 
                    c='pink', marker='o', s=100, label='Inside Attackers')
+        # 내부 공격자 노드 ID 표시
+        for i, (x, y) in enumerate(zip(inside_x, inside_y)):
+            for node_id, node in wsn_field.nodes.items():
+                if node.pos_x == x and node.pos_y == y:
+                    plt.annotate(str(node_id), (x, y), 
+                               xytext=(5, 5), textcoords='offset points',
+                               fontsize=8, alpha=0.7)
     
     outside_x, outside_y = classified_nodes['outside_attack']
     if outside_x:
         plt.scatter(outside_x, outside_y, 
                    c='red', marker='o', s=100, label='Outside Attackers')
+        # 외부 공격자 노드 ID 표시
+        for i, (x, y) in enumerate(zip(outside_x, outside_y)):
+            for node_id, node in wsn_field.nodes.items():
+                if node.pos_x == x and node.pos_y == y:
+                    plt.annotate(str(node_id), (x, y), 
+                               xytext=(5, 5), textcoords='offset points',
+                               fontsize=8, alpha=0.7)
     
     affected_x, affected_y = classified_nodes['affected']
     if affected_x:
         plt.scatter(affected_x, affected_y, 
                    c='orange', marker='o', s=50, label='Affected Nodes')
+        # 영향받은 노드 ID 표시
+        for i, (x, y) in enumerate(zip(affected_x, affected_y)):
+            for node_id, node in wsn_field.nodes.items():
+                if node.pos_x == x and node.pos_y == y:
+                    plt.annotate(str(node_id), (x, y), 
+                               xytext=(5, 5), textcoords='offset points',
+                               fontsize=8, alpha=0.7)
     
     # BS 그리기
     plt.scatter(wsn_field.base_station['x'], wsn_field.base_station['y'],
                c='red', marker='^', s=200, label='Base Station')
+    plt.annotate('BS', (wsn_field.base_station['x'], wsn_field.base_station['y']),
+                xytext=(5, 5), textcoords='offset points',
+                fontsize=10, weight='bold')
     
     plt.title('WSN Node Deployment with Sinkhole Attacks')
     plt.xlabel('Field Width (m)')
@@ -261,38 +299,61 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
                 return False
         return True
 
-    def find_nodes_in_affected_paths(wsn_field):
-        """affected 노드의 경로상에 있는 노드들을 찾는 함수"""
-        path_nodes = set()
+    def get_affected_and_neighbor_nodes():
+        """affected 노드와 그 이웃 노드들의 목록을 반환"""
         affected_nodes = set()
+        neighbor_nodes = set()
         
-        # affected 노드와 경로상의 노드들 찾기
+        # affected 노드 찾기
         for node_id, node in wsn_field.nodes.items():
             if node.node_type == "affected":
                 affected_nodes.add(node_id)
-                current = node
-                while current.next_hop and current.next_hop != "BS":
-                    if current.next_hop not in wsn_field.nodes:
-                        break
-                    path_nodes.add(current.next_hop)
-                    current = wsn_field.nodes[current.next_hop]
-                    
-        return list(path_nodes), list(affected_nodes)
-
-    def get_farthest_node(wsn_field, candidate_nodes):
-        """BS로부터 가장 먼 노드를 선택하는 함수"""
-        max_distance = -1
-        farthest_node = None
-        bs_x, bs_y = wsn_field.base_station['x'], wsn_field.base_station['y']
+                # affected 노드의 이웃 노드들 추가
+                for neighbor_id in node.neighbor_nodes:
+                    if wsn_field.nodes[neighbor_id].node_type == "normal":
+                        neighbor_nodes.add(neighbor_id)
         
-        for node_id in candidate_nodes:
-            node = wsn_field.nodes[node_id]
-            distance = ((node.pos_x - bs_x) ** 2 + (node.pos_y - bs_y) ** 2) ** 0.5
-            if distance > max_distance:
-                max_distance = distance
-                farthest_node = node_id
-                
-        return farthest_node
+        return list(affected_nodes), list(neighbor_nodes)
+
+    def get_malicious_node_path(source_node_id):
+        """소스 노드에서 가장 가까운 malicious 노드로의 경로 생성"""
+        path = [source_node_id]
+        current_id = source_node_id
+        
+        while True:
+            current_node = wsn_field.nodes[current_id]
+            # 현재 노드의 이웃 중 malicious 노드 찾기
+            malicious_neighbors = [n_id for n_id in current_node.neighbor_nodes 
+                                if wsn_field.nodes[n_id].node_type in ["malicious_inside", "malicious_outside"]]
+            
+            if malicious_neighbors:
+                # malicious 노드를 찾았으면 경로에 추가하고 종료
+                path.append(malicious_neighbors[0])
+                break
+            
+            # malicious 노드 방향으로 이동
+            min_distance = float('inf')
+            next_hop = None
+            
+            for neighbor_id in current_node.neighbor_nodes:
+                neighbor = wsn_field.nodes[neighbor_id]
+                if neighbor_id not in path:  # 순환 방지
+                    for mal_id, mal_node in wsn_field.nodes.items():
+                        if mal_node.node_type in ["malicious_inside", "malicious_outside"]:
+                            distance = ((neighbor.pos_x - mal_node.pos_x)**2 + 
+                                     (neighbor.pos_y - mal_node.pos_y)**2)**0.5
+                            if distance < min_distance:
+                                min_distance = distance
+                                next_hop = neighbor_id
+            
+            if next_hop is None:
+                # malicious 노드로 가는 경로를 찾지 못함
+                return None
+            
+            path.append(next_hop)
+            current_id = next_hop
+        
+        return path
 
     # 초기 공격 실행
     malicious_nodes = attack.execute_attack(num_attackers=NUM_ATTACKERS)
@@ -302,43 +363,61 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
 
     # 보고서 전송 시뮬레이션
     for i in range(num_reports):
-        # 확률적으로 공격 실행 (0~100 사이의 정수로 비교)
+        # 공격 확률에 따라 소스 노드 선택
         if np.random.randint(1, 101) <= ATTACK_PROBABILITY:
-            # affected 노드의 경로상에 있는 노드들과 affected 노드들 찾기
-            path_nodes, affected_nodes = find_nodes_in_affected_paths(wsn_field)
+            # affected 노드나 그 이웃 노드에서 보고서 생성
+            affected_nodes, neighbor_nodes = get_affected_and_neighbor_nodes()
+            candidate_nodes = affected_nodes + neighbor_nodes
             
-            if path_nodes:  # 경로상의 노드가 있는 경우
-                # BS에서 가장 먼 노드 선택
-                source_node = get_farthest_node(wsn_field, path_nodes)
+            if candidate_nodes:
+                source_node = np.random.choice(candidate_nodes)
+                # malicious 노드로 향하는 경로 생성
+                path = get_malicious_node_path(source_node)
                 
-                if source_node:
-                    # 보고서 전송 시뮬레이션 (affected 노드를 통과하도록)
-                    result = routing.simulate_reports(1, source_node=source_node)[0]
-                    # 경로 유효성 검증
-                    if validate_path(result['path']):
-                        results.append(result)
-                    else:
-                        logger.warning(f"Invalid path detected and skipped: {result['path']}")
+                if path:
+                    result = {
+                        'report_id': i + 1,
+                        'source_node': source_node,
+                        'path': path,
+                        'source_energy': wsn_field.nodes[source_node].energy_level
+                    }
+                    results.append(result)
+                    
+                    # 경로를 따라 패킷 전송 시뮬레이션
+                    for j in range(len(path)-1):
+                        current_id = path[j]
+                        current_node = wsn_field.nodes[current_id]
+                        current_node.transmit_packet(32)  # 패킷 전송
+                        
+                        next_id = path[j+1]
+                        if next_id != "BS":
+                            next_node = wsn_field.nodes[next_id]
+                            next_node.receive_packet(32)  # 패킷 수신
                 else:
-                    # 적절한 소스 노드를 찾지 못한 경우 일반 시뮬레이션
+                    # malicious 노드로 가는 경로를 찾지 못한 경우 일반 전송
                     result = routing.simulate_reports(1)[0]
                     if validate_path(result['path']):
                         results.append(result)
             else:
-                # 경로상의 노드가 없는 경우 일반 시뮬레이션
+                # affected 노드나 이웃이 없는 경우 일반 전송
                 result = routing.simulate_reports(1)[0]
                 if validate_path(result['path']):
                     results.append(result)
         else:
-            # 공격이 발생하지 않는 경우 일반 시뮬레이션
-            result = routing.simulate_reports(1)[0]
-            if validate_path(result['path']):
-                results.append(result)
-        
-        # 디버깅 모드일 경우 각 보고서 정보 출력
+            # 일반 전송 (랜덤한 노드에서 BS로)
+            available_nodes = [node_id for node_id, node in wsn_field.nodes.items() 
+                             if node.node_type == "normal"]
+            if available_nodes:
+                source_node = np.random.choice(available_nodes)
+                result = routing.simulate_reports(1, source_node=source_node)[0]
+                if validate_path(result['path']):
+                    results.append(result)
+
+        # 보고서 경로 정보 출력
         if DEBUG_MODE and len(results) > 0:
             latest_result = results[-1]
-            logger.debug(f"Report #{i+1}: Source Node {latest_result['source_node']}, Path: {' -> '.join(map(str, latest_result['path']))}")
+            path_str = " -> ".join(map(str, latest_result['path']))
+            logger.debug(f"Report #{i+1}: Source Node {latest_result['source_node']}, Path: {path_str}")
 
         # 진행상황 출력 (10% 단위)
         if i % (num_reports // 10) == 0:
@@ -378,10 +457,6 @@ def analyze_network_statistics(wsn_field):
         node_energy = getattr(node, 'total_consumed_energy', 0)
         total_energy += node_energy
         
-        # 디버깅을 위한 속성 출력
-        if DEBUG_MODE and node_id < 5:  # 처음 5개 노드만 출력
-            logger.debug(f"노드 {node_id}의 속성: {dir(node)}")
-        
         # tx_count와 rx_count 직접 확인 (안전하게 접근)
         tx_count = 0
         rx_count = 0
@@ -419,40 +494,6 @@ def analyze_network_statistics(wsn_field):
     logger.info(f"Nodes with TX: {len(nodes_with_tx)}/{len(wsn_field.nodes)} ({len(nodes_with_tx)/len(wsn_field.nodes)*100:.1f}%)")
     logger.info(f"Nodes with RX: {len(nodes_with_rx)}/{len(wsn_field.nodes)} ({len(nodes_with_rx)/len(wsn_field.nodes)*100:.1f}%)")
     
-    # 디버깅 모드일 경우 패킷 전송/수신 정보가 있는 노드 목록 출력
-    if DEBUG_MODE:
-        logger.debug("\n----- 패킷 전송 정보가 있는 노드 -----")
-        tx_nodes_found = 0
-        for node_id in nodes_with_tx[:10]:  # 처음 10개만 출력
-            node = wsn_field.nodes[node_id]
-            tx_count = getattr(node, 'tx_count', 0)
-            logger.debug(f"Node {node_id}: TX={tx_count}")
-            tx_nodes_found += 1
-            
-        if tx_nodes_found == 0:
-            logger.debug("패킷 전송 정보가 있는 노드가 없습니다.")
-            
-        logger.debug("\n----- 패킷 수신 정보가 있는 노드 -----")
-        rx_nodes_found = 0
-        for node_id in nodes_with_rx[:10]:  # 처음 10개만 출력
-            node = wsn_field.nodes[node_id]
-            rx_count = getattr(node, 'rx_count', 0)
-            logger.debug(f"Node {node_id}: RX={rx_count}")
-            rx_nodes_found += 1
-            
-        if rx_nodes_found == 0:
-            logger.debug("패킷 수신 정보가 있는 노드가 없습니다.")
-        
-        logger.debug("\n----- 에너지 소비가 있는 노드 -----")
-        for node_id in nodes_with_energy[:10]:  # 처음 10개만 출력
-            node = wsn_field.nodes[node_id]
-            energy = getattr(node, 'total_consumed_energy', 0)
-            tx = getattr(node, 'tx_count', 0)
-            rx = getattr(node, 'rx_count', 0)
-            logger.debug(f"Node {node_id}: Energy={energy:.8f}J, TX={tx}, RX={rx}")
-        
-        if len(nodes_with_energy) > 10:
-            logger.debug(f"... and {len(nodes_with_energy) - 10} more nodes")
 
 def get_routing_protocol(protocol_name, wsn_field):
     """선택한 라우팅 프로토콜을 반환"""

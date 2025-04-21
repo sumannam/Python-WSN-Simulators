@@ -1,4 +1,5 @@
 from core.routing.BaseRoutingProtocol import BaseRoutingProtocol
+import numpy as np
 
 
 class DijkstraRouting(BaseRoutingProtocol):
@@ -126,3 +127,61 @@ class DijkstraRouting(BaseRoutingProtocol):
                     best_next_hop = neighbor_id
 
         return best_next_hop
+
+    def connect_nodes_directly_to_bs(self):
+        """BS와 직접 연결 가능한 노드들을 연결"""
+        for node_id, node in self.field.nodes.items():
+            if node_id not in self.routing_table:
+                # BS와의 거리 계산
+                distance = np.sqrt((node.pos_x - self.field.base_station['x'])**2 + 
+                                 (node.pos_y - self.field.base_station['y'])**2)
+                
+                # BS가 통신 범위 내에 있고, 에너지가 충분한 경우에만 연결
+                if (distance <= self.field.base_station['comm_range'] and 
+                    node.energy_level > self.field.base_station['energy_threshold']):
+                    self.routing_table[node_id] = "BS"
+                    # 에너지 소모 시뮬레이션
+                    node.transmit_packet(32)  # 기본 패킷 크기로 에너지 소모 계산
+
+    def apply_dijkstra(self):
+        """Dijkstra 알고리즘 적용"""
+        # 초기화
+        distances = {node_id: float('inf') for node_id in self.field.nodes}
+        previous = {node_id: None for node_id in self.field.nodes}
+        unvisited = set(self.field.nodes.keys())
+        
+        # BS와 직접 연결된 노드들의 거리를 1로 설정
+        for node_id in self.routing_table:
+            if self.routing_table[node_id] == "BS":
+                distances[node_id] = 1
+                previous[node_id] = "BS"
+        
+        while unvisited:
+            # 가장 짧은 거리를 가진 노드 선택
+            current = min(unvisited, key=lambda x: distances[x])
+            if distances[current] == float('inf'):
+                break
+                
+            unvisited.remove(current)
+            
+            # 현재 노드의 이웃 노드들에 대해 거리 업데이트
+            for neighbor_id in self.field.nodes:
+                if neighbor_id != current and neighbor_id in unvisited:
+                    # 이웃 노드와의 거리 계산
+                    current_node = self.field.nodes[current]
+                    neighbor_node = self.field.nodes[neighbor_id]
+                    distance = np.sqrt((current_node.pos_x - neighbor_node.pos_x)**2 + 
+                                     (current_node.pos_y - neighbor_node.pos_y)**2)
+                    
+                    # 통신 범위 내에 있고, 에너지가 충분한 경우에만 연결 고려
+                    if (distance <= self.field.base_station['comm_range'] and 
+                        neighbor_node.energy_level > self.field.base_station['energy_threshold']):
+                        new_distance = distances[current] + 1
+                        if new_distance < distances[neighbor_id]:
+                            distances[neighbor_id] = new_distance
+                            previous[neighbor_id] = current
+        
+        # 경로 설정
+        for node_id in self.field.nodes:
+            if node_id not in self.routing_table and previous[node_id] is not None:
+                self.routing_table[node_id] = previous[node_id]

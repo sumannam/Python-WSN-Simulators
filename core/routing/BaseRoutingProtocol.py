@@ -45,10 +45,17 @@ class BaseRoutingProtocol:
         for j in range(len(path)-1):
             current_id = int(path[j])
             current_node = self.field.nodes[current_id]
+            
+            # 현재 노드의 패킷 전송
             current_node.transmit_packet(packet_size)
-                
-            if path[j+1] != "BS":
-                next_id = int(path[j+1])
+            
+            # 다음 노드의 패킷 수신
+            next_id = path[j+1]
+            if next_id == "BS":
+                # BS에 도달한 경우
+                continue
+            else:
+                next_id = int(next_id)
                 next_node = self.field.nodes[next_id]
                 next_node.receive_packet(packet_size)
         
