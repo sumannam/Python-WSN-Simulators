@@ -224,32 +224,89 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
     """공격 시점을 고려한 시뮬레이션 실행"""
     results = []
     
-    # 공격 시점 계산 (보고서 발생 진행률 기준)
-    attack_point = int(num_reports * int(attack_timing) / 100)
-    
     # 공격 객체 준비
     attack = Sinkhole(wsn_field, attack_type=ATTACK_TYPE, attack_range=ATTACK_RANGE)
+    malicious_nodes = None  # 공격자 노드 추적
 
     logger.info(f"\nSimulating {NUM_REPORTS} Report Transmissions:")
     logger.info("-" * 50)
-    logger.info(f"Attack timing: {attack_timing}% (at report {attack_point})")
+    logger.info(f"Attack probability: {ATTACK_PROBABILITY}% per report")
     
     start_time = time.time()
 
+    def find_nodes_in_affected_paths(wsn_field):
+        """affected 노드의 경로상에 있는 노드들을 찾는 함수"""
+        path_nodes = set()
+        affected_nodes = set()
+        
+        # affected 노드와 경로상의 노드들 찾기
+        for node_id, node in wsn_field.nodes.items():
+            if node.node_type == "affected":
+                affected_nodes.add(node_id)
+                current = node
+                while current.next_hop and current.next_hop != "BS":
+                    path_nodes.add(current.next_hop)
+                    current = wsn_field.nodes[current.next_hop]
+                    
+        return list(path_nodes), list(affected_nodes)
+
+    def get_farthest_node(wsn_field, candidate_nodes):
+        """BS로부터 가장 먼 노드를 선택하는 함수"""
+        max_distance = -1
+        farthest_node = None
+        bs_x, bs_y = wsn_field.base_station['x'], wsn_field.base_station['y']
+        
+        for node_id in candidate_nodes:
+            node = wsn_field.nodes[node_id]
+            distance = ((node.pos_x - bs_x) ** 2 + (node.pos_y - bs_y) ** 2) ** 0.5
+            if distance > max_distance:
+                max_distance = distance
+                farthest_node = node_id
+                
+        return farthest_node
+
+    # 초기 공격 실행
+    malicious_nodes = attack.execute_attack(num_attackers=NUM_ATTACKERS)
+    logger.info(f"\nInitial Sinkhole Attack Executed:")
+    logger.info(f"Number of malicious nodes: {len(malicious_nodes)}")
+    logger.info(f"Malicious node IDs: {malicious_nodes}")
+
     # 보고서 전송 시뮬레이션
     for i in range(num_reports):
-        # 공격 시점에 도달하면 공격 실행
-        if i == attack_point:
-            malicious_nodes = attack.execute_attack(num_attackers=NUM_ATTACKERS)
-            logger.info(f"\nSinkhole Attack Executed at {attack_timing}% of reports:")
-            logger.info(f"Number of malicious nodes: {len(malicious_nodes)}")
-            logger.info(f"Malicious node IDs: {malicious_nodes}")
+        # 확률적으로 공격 실행 (0~100 사이의 정수로 비교)
+        if np.random.randint(1, 101) <= ATTACK_PROBABILITY:
+            # affected 노드의 경로상에 있는 노드들과 affected 노드들 찾기
+            path_nodes, affected_nodes = find_nodes_in_affected_paths(wsn_field)
             
-            # routing.setup_routing() 호출 제거
-
-        # 보고서 전송
-        result = routing.simulate_reports(1)[0]
-        results.append(result)
+            if path_nodes:  # 경로상의 노드가 있는 경우
+                # BS에서 가장 먼 노드 선택
+                source_node = get_farthest_node(wsn_field, path_nodes)
+                
+                if source_node:
+                    # 보고서 전송 시뮬레이션 (affected 노드를 통과하도록)
+                    result = routing.simulate_reports(1, source_node=source_node)[0]
+                    results.append(result)
+                    
+                    # 경로에 affected 노드가 포함되어 있는지 확인
+                    path = result['path']
+                    affected_in_path = any(node_id in affected_nodes for node_id in path)
+                    
+                    if affected_in_path:
+                        logger.info(f"\nReport #{i+1}: Sinkhole attack occurred")
+                        logger.info(f"Source Node: {source_node}")
+                        logger.info(f"Path: {' -> '.join(map(str, path))}")
+                else:
+                    # 적절한 소스 노드를 찾지 못한 경우 일반 시뮬레이션
+                    result = routing.simulate_reports(1)[0]
+                    results.append(result)
+            else:
+                # 경로상의 노드가 없는 경우 일반 시뮬레이션
+                result = routing.simulate_reports(1)[0]
+                results.append(result)
+        else:
+            # 공격이 발생하지 않는 경우 일반 시뮬레이션
+            result = routing.simulate_reports(1)[0]
+            results.append(result)
         
         # 디버깅 모드일 경우 각 보고서 정보 출력
         if DEBUG_MODE:

@@ -15,13 +15,14 @@ ROUTING_PROTOCOL = "dijkstra"  # 라우팅 프로토콜 타입 ("dijkstra", "LEA
 ROUTING_PROTOCOL = "dijkstra"  # 라우팅 프로토콜 타입 ("dijkstra", "LEACH")
 
 # Attack Parameters
-ATTACK_TYPE = "inside"   # 공격 타입 ("outside" or "inside")
+ATTACK_TYPE = "outside"   # 공격 타입 ("outside" or "inside")
 NUM_ATTACKERS = 1         # 공격자 수
+ATTACK_PROBABILITY = 100   # 각 보고서마다 공격이 발생할 확률 (0 ~ 100)
 ATTACK_TIMING = "0"      # 공격 시점 (보고서 발생 기준 "0", "30", "50", "70", "90")
 ATTACK_RANGE = 150        # 공격 영향 범위 (m)
 
 # Report Parameters
-NUM_REPORTS = 100         # 생성할 보고서 수
+NUM_REPORTS = 1000         # 생성할 보고서 수
 
 # Save Parameters
 SAVE_FILE_NAME = 'final_nodes_state.csv'  # 결과 저장 파일명
