@@ -21,6 +21,7 @@ from core.routing.BaseRoutingProtocol import BaseRoutingProtocol
 from core.routing.DijkstraRouting import DijkstraRouting
 
 from attacks.Sinkhole import Sinkhole
+from utils.visualize_network import plot_wsn_network, animate_report_transmission
 from config import *
 
 
@@ -135,9 +136,26 @@ def classify_wsn_nodes(wsn_field):
         'affected': (affected_nodes_x, affected_nodes_y)
     }
 
-def plot_wsn_network(wsn_field, classified_nodes):
+def plot_wsn_network(wsn_field, classified_nodes, attack_range):
     """WSN 노드 배치 시각화"""
-    plt.figure(figsize=(12, 12))
+    # 창 크기를 70% 줄임 (12 -> 8.4)
+    plt.figure(figsize=(8.4, 8.4))
+    
+    # 창 위치를 모니터 좌상단(0,0)으로 이동
+    mngr = plt.get_current_fig_manager()
+    # 백엔드가 TkAgg인 경우
+    try:
+        mngr.window.wm_geometry("+0+0")
+    except:
+        try:
+            # Qt 백엔드인 경우
+            mngr.window.setGeometry(0, 0, 850, 850)
+        except:
+            try:
+                # WX 백엔드인 경우
+                mngr.window.SetPosition((0, 0))
+            except:
+                logger.warning("Window position could not be set for this backend")
     
     # 필드 경계 설정
     plt.xlim(0, wsn_field.width)
@@ -147,7 +165,7 @@ def plot_wsn_network(wsn_field, classified_nodes):
     for node in wsn_field.nodes.values():
         if node.node_type in ["malicious_outside", "malicious_inside"]:
             attack_range = plt.Circle((node.pos_x, node.pos_y), 
-                                    ATTACK_RANGE, 
+                                    attack_range, 
                                     color='red', 
                                     fill=False, 
                                     linestyle='--', 
@@ -182,69 +200,69 @@ def plot_wsn_network(wsn_field, classified_nodes):
     normal_x, normal_y, normal_colors = classified_nodes['normal']
     if normal_x:
         plt.scatter(normal_x, normal_y, 
-                   c=normal_colors, marker='o', s=50, label='Normal Nodes')
+                   c=normal_colors, marker='o', s=35, label='Normal Nodes')  # s값을 50에서 35로 줄임
         # 일반 노드 ID 표시
         for i, (x, y) in enumerate(zip(normal_x, normal_y)):
             for node_id, node in wsn_field.nodes.items():
                 if node.pos_x == x and node.pos_y == y:
                     plt.annotate(str(node_id), (x, y), 
                                xytext=(5, 5), textcoords='offset points',
-                               fontsize=8, alpha=0.7)
+                               fontsize=6, alpha=0.7)  # fontsize를 8에서 6으로 줄임
     
     dead_x, dead_y = classified_nodes['dead']
     if dead_x:
         plt.scatter(dead_x, dead_y, 
-                   c='black', marker='o', s=50, label='Dead Nodes')
+                   c='black', marker='o', s=35, label='Dead Nodes')  # s값을 50에서 35로 줄임
         # 죽은 노드 ID 표시
         for i, (x, y) in enumerate(zip(dead_x, dead_y)):
             for node_id, node in wsn_field.nodes.items():
                 if node.pos_x == x and node.pos_y == y:
                     plt.annotate(str(node_id), (x, y), 
                                xytext=(5, 5), textcoords='offset points',
-                               fontsize=8, alpha=0.7)
+                               fontsize=6, alpha=0.7)  # fontsize를 8에서 6으로 줄임
     
     inside_x, inside_y = classified_nodes['inside_attack']
     if inside_x:
         plt.scatter(inside_x, inside_y, 
-                   c='pink', marker='o', s=100, label='Inside Attackers')
+                   c='pink', marker='o', s=70, label='Inside Attackers')  # s값을 100에서 70으로 줄임
         # 내부 공격자 노드 ID 표시
         for i, (x, y) in enumerate(zip(inside_x, inside_y)):
             for node_id, node in wsn_field.nodes.items():
                 if node.pos_x == x and node.pos_y == y:
                     plt.annotate(str(node_id), (x, y), 
                                xytext=(5, 5), textcoords='offset points',
-                               fontsize=8, alpha=0.7)
+                               fontsize=6, alpha=0.7)  # fontsize를 8에서 6으로 줄임
     
     outside_x, outside_y = classified_nodes['outside_attack']
     if outside_x:
         plt.scatter(outside_x, outside_y, 
-                   c='red', marker='o', s=100, label='Outside Attackers')
+                   c='red', marker='o', s=70, label='Outside Attackers')  # s값을 100에서 70으로 줄임
         # 외부 공격자 노드 ID 표시
         for i, (x, y) in enumerate(zip(outside_x, outside_y)):
             for node_id, node in wsn_field.nodes.items():
                 if node.pos_x == x and node.pos_y == y:
                     plt.annotate(str(node_id), (x, y), 
                                xytext=(5, 5), textcoords='offset points',
-                               fontsize=8, alpha=0.7)
+                               fontsize=6, alpha=0.7)  # fontsize를 8에서 6으로 줄임
     
     affected_x, affected_y = classified_nodes['affected']
     if affected_x:
         plt.scatter(affected_x, affected_y, 
-                   c='orange', marker='o', s=50, label='Affected Nodes')
+                   c='orange', marker='o', s=35, label='Affected Nodes')  # s값을 50에서 35로 줄임
         # 영향받은 노드 ID 표시
         for i, (x, y) in enumerate(zip(affected_x, affected_y)):
             for node_id, node in wsn_field.nodes.items():
                 if node.pos_x == x and node.pos_y == y:
                     plt.annotate(str(node_id), (x, y), 
                                xytext=(5, 5), textcoords='offset points',
-                               fontsize=8, alpha=0.7)
+                               fontsize=6, alpha=0.7)  # fontsize를 8에서 6으로 줄임
     
     # BS 그리기
     plt.scatter(wsn_field.base_station['x'], wsn_field.base_station['y'],
-               c='red', marker='^', s=200, label='Base Station')
+               c='red', marker='^', s=140, label='Base Station')  # s값을 200에서 140으로 줄임
     plt.annotate('BS', (wsn_field.base_station['x'], wsn_field.base_station['y']),
                 xytext=(5, 5), textcoords='offset points',
-                fontsize=10, weight='bold')
+                fontsize=8, weight='bold')  # fontsize를 10에서 8로 줄임
     
     plt.title('WSN Node Deployment with Sinkhole Attacks')
     plt.xlabel('Field Width (m)')
@@ -252,7 +270,7 @@ def plot_wsn_network(wsn_field, classified_nodes):
     
     # 범례를 오른쪽 하단에 위치시키고 속성 조정
     plt.legend(loc='lower right', framealpha=0.9, frameon=True, 
-              fontsize='medium', markerscale=0.8, 
+              fontsize='small', markerscale=0.8,  # fontsize를 medium에서 small로 변경
               bbox_to_anchor=(0.99, 0.01))
     
     plt.grid(True)
@@ -510,222 +528,6 @@ def get_routing_protocol(protocol_name, wsn_field):
         logger.warning(f"Unknown routing protocol '{protocol_name}'. Using Dijkstra as default.")
         return DijkstraRouting(wsn_field)
 
-def animate_report_transmission(wsn_field, results, classified_nodes):
-    """보고서 전송 과정을 애니메이션으로 시각화"""
-    if not ENABLE_ANIMATION:
-        logger.info("Animation is disabled in config.py")
-        return
-        
-    if not LIVE_ANIMATION and not SAVE_ANIMATION:
-        logger.info("Both live animation and save animation are disabled")
-        return
-        
-    if not results:
-        logger.warning("No results to animate")
-        return
-
-    # 유효한 경로만 필터링
-    valid_results = []
-    for result in results:
-        if not isinstance(result, dict) or 'path' not in result:
-            continue
-        path = result['path']
-        if not isinstance(path, (list, tuple)) or len(path) < 2:
-            continue
-            
-        is_valid = True
-        for node_id in path[:-1]:
-            if isinstance(node_id, str):
-                if not node_id.isdigit():
-                    is_valid = False
-                    break
-                node_id = int(node_id)
-            if not isinstance(node_id, (int, str)) or node_id not in wsn_field.nodes:
-                is_valid = False
-                break
-        if is_valid and path[-1] == "BS":
-            valid_results.append(result)
-    
-    if not valid_results:
-        logger.warning("No valid paths to animate")
-        return
-        
-    logger.info(f"Starting animation with {len(valid_results)} valid paths")
-    
-    # 실시간 디스플레이를 위한 설정
-    plt.ion() if LIVE_ANIMATION else plt.ioff()
-    
-    # Figure 및 Axes 설정
-    fig = plt.figure(figsize=(12, 12))
-    ax = fig.add_subplot(111)
-    fig.canvas.manager.set_window_title('WSN Report Transmission Animation')
-    
-    # 필드 경계 설정
-    ax.set_xlim(0, wsn_field.width)
-    ax.set_ylim(0, wsn_field.height)
-    
-    def interpolate_position(start_pos, end_pos, ratio):
-        """두 점 사이의 중간 위치를 계산"""
-        return (
-            start_pos[0] + (end_pos[0] - start_pos[0]) * ratio,
-            start_pos[1] + (end_pos[1] - start_pos[1]) * ratio
-        )
-    
-    # 기본 네트워크 구조 그리기
-    def draw_base_network():
-        ax.clear()
-        # 공격 범위 원 그리기
-        for node in wsn_field.nodes.values():
-            if node.node_type in ["malicious_outside", "malicious_inside"]:
-                attack_range = plt.Circle((node.pos_x, node.pos_y), 
-                                        ATTACK_RANGE, 
-                                        color='red', 
-                                        fill=False, 
-                                        linestyle='--', 
-                                        alpha=0.5)
-                ax.add_patch(attack_range)
-        
-        # 노드 그리기
-        normal_x, normal_y, normal_colors = classified_nodes['normal']
-        if normal_x:
-            ax.scatter(normal_x, normal_y, c=normal_colors, marker='o', s=50, label='Normal Nodes')
-        
-        dead_x, dead_y = classified_nodes['dead']
-        if dead_x:
-            ax.scatter(dead_x, dead_y, c='black', marker='o', s=50, label='Dead Nodes')
-        
-        inside_x, inside_y = classified_nodes['inside_attack']
-        if inside_x:
-            ax.scatter(inside_x, inside_y, c='pink', marker='o', s=100, label='Inside Attackers')
-        
-        outside_x, outside_y = classified_nodes['outside_attack']
-        if outside_x:
-            ax.scatter(outside_x, outside_y, c='red', marker='o', s=100, label='Outside Attackers')
-        
-        affected_x, affected_y = classified_nodes['affected']
-        if affected_x:
-            ax.scatter(affected_x, affected_y, c='orange', marker='o', s=50, label='Affected Nodes')
-        
-        # BS 그리기
-        ax.scatter(wsn_field.base_station['x'], wsn_field.base_station['y'],
-                  c='red', marker='^', s=200, label='Base Station')
-        
-        ax.grid(True)
-        ax.set_xlabel('Field Width (m)')
-        ax.set_ylabel('Field Height (m)')
-        ax.legend(loc='lower right', bbox_to_anchor=(0.98, 0.02))
-    
-    # 초기 네트워크 그리기
-    draw_base_network()
-    plt.draw()
-    
-    # 실시간 애니메이션
-    if LIVE_ANIMATION:
-        logger.info("Starting live animation...")
-        for frame in range(len(valid_results)):
-            try:
-                result = valid_results[frame]
-                path = result.get('path', [])
-                
-                if len(path) < 2:
-                    continue
-                
-                # 전체 경로 그리기 (회색으로)
-                for i in range(len(path)-1):
-                    if path[i] not in wsn_field.nodes:
-                        continue
-                        
-                    current = wsn_field.nodes[path[i]]
-                    if path[i+1] == "BS":
-                        next_x = wsn_field.base_station['x']
-                        next_y = wsn_field.base_station['y']
-                    else:
-                        if path[i+1] not in wsn_field.nodes:
-                            continue
-                        next_node = wsn_field.nodes[path[i+1]]
-                        next_x = next_node.pos_x
-                        next_y = next_node.pos_y
-                    
-                    ax.plot([current.pos_x, next_x],
-                           [current.pos_y, next_y],
-                           'gray', linestyle='--', alpha=0.5)
-                
-                # 각 세그먼트를 따라 패킷 이동
-                for i in range(len(path)-1):
-                    if path[i] not in wsn_field.nodes:
-                        continue
-                        
-                    current = wsn_field.nodes[path[i]]
-                    current_pos = (current.pos_x, current.pos_y)
-                    
-                    if path[i+1] == "BS":
-                        next_pos = (wsn_field.base_station['x'], wsn_field.base_station['y'])
-                    else:
-                        if path[i+1] not in wsn_field.nodes:
-                            continue
-                        next_node = wsn_field.nodes[path[i+1]]
-                        next_pos = (next_node.pos_x, next_node.pos_y)
-                    
-                    # 현재 활성화된 노드 강조
-                    ax.scatter(current_pos[0], current_pos[1],
-                             c='yellow', marker='o', s=100,
-                             edgecolor='red', linewidth=2)
-                    
-                    # 패킷 이동 애니메이션
-                    for step in range(STEPS_PER_PATH + 1):
-                        ratio = step / STEPS_PER_PATH
-                        packet_pos = interpolate_position(current_pos, next_pos, ratio)
-                        
-                        # 이전 패킷 제거
-                        for collection in ax.collections[:]:
-                            if hasattr(collection, 'is_packet') and collection.is_packet:
-                                collection.remove()
-                        
-                        # 현재 활성화된 경로 표시
-                        ax.plot([current_pos[0], next_pos[0]],
-                               [current_pos[1], next_pos[1]],
-                               'r-', linewidth=2, alpha=0.8)
-                        
-                        # 패킷 그리기
-                        packet = ax.scatter(packet_pos[0], packet_pos[1],
-                                          c='white', marker='o', s=PACKET_SIZE,
-                                          edgecolor='red', linewidth=2)
-                        packet.is_packet = True  # 패킷 식별을 위한 속성 추가
-                        
-                        # 진행 상황 업데이트
-                        ax.set_title(f'Report {frame+1}/{len(valid_results)}: Node {path[i]} → {path[i+1]}')
-                        
-                        # 화면 업데이트
-                        fig.canvas.draw()
-                        fig.canvas.flush_events()
-                        plt.pause(ANIMATION_INTERVAL / (1000.0 * STEPS_PER_PATH))
-                
-            except Exception as e:
-                logger.error(f"Error in frame {frame}: {str(e)}")
-                continue
-    
-    # GIF 저장
-    if SAVE_ANIMATION:
-        logger.info("Creating animation for saving...")
-        plt.ioff()
-        anim = FuncAnimation(fig, update, frames=len(valid_results),
-                           interval=ANIMATION_INTERVAL, repeat=False)
-        
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        anim_folder = os.path.join(script_dir, 'results')
-        if not os.path.exists(anim_folder):
-            os.makedirs(anim_folder)
-        
-        logger.info("Saving animation as GIF...")
-        anim.save(os.path.join(anim_folder, 'report_transmission.gif'),
-                 writer='pillow', fps=ANIMATION_FPS)
-        logger.info("Animation saved successfully")
-    
-    if LIVE_ANIMATION:
-        plt.show(block=True)  # 창이 닫힐 때까지 대기
-    
-    plt.close('all')
-
 def main():
     # 로깅 설정
     global logger
@@ -762,10 +564,20 @@ def main():
     classified_nodes = classify_wsn_nodes(wsn_field)
     
     # 6. 정적 네트워크 시각화
-    plot_wsn_network(wsn_field, classified_nodes)
+    plot_wsn_network(wsn_field, classified_nodes, ATTACK_RANGE)
     
     # 7. 보고서 전송 애니메이션
-    animate_report_transmission(wsn_field, transmission_results, classified_nodes)
+    animation_config = {
+        'ENABLE_ANIMATION': ENABLE_ANIMATION,
+        'ANIMATION_INTERVAL': ANIMATION_INTERVAL,
+        'ANIMATION_FPS': ANIMATION_FPS,
+        'SAVE_ANIMATION': SAVE_ANIMATION,
+        'LIVE_ANIMATION': LIVE_ANIMATION,
+        'STEPS_PER_PATH': STEPS_PER_PATH,
+        'PACKET_SIZE': PACKET_SIZE,
+        'ATTACK_RANGE': ATTACK_RANGE
+    }
+    animate_report_transmission(wsn_field, transmission_results, classified_nodes, animation_config)
     
     logger.info("==== WSN Simulation End ====")
 
