@@ -24,6 +24,73 @@ class Sinkhole(NetworkAttackBase):
         super().__init__(field, attack_type, attack_range)
         self.grid_size = 100  # Grid size for density calculation
     
+    def analyze_network_statistics(self):
+        """네트워크 통계 분석 및 출력"""
+        total_energy = 0
+        total_tx = 0
+        total_rx = 0
+        active_nodes = 0
+        
+        # 에너지와 패킷 전송/수신 통계
+        nodes_with_energy = []
+        nodes_with_tx = []
+        nodes_with_rx = []
+        
+        for node_id, node in self.field.nodes.items():
+            if node.status == "active":
+                active_nodes += 1
+                
+            # 에너지 소비 확인
+            node_energy = getattr(node, 'total_consumed_energy', 0)
+            total_energy += node_energy
+            
+            # tx_count와 rx_count 직접 확인 (안전하게 접근)
+            tx_count = 0
+            rx_count = 0
+            
+            # hasattr로 속성 존재 여부 확인 후 접근
+            if hasattr(node, 'tx_count'):
+                tx_count = node.tx_count
+            elif hasattr(node, 'transmit_count'):  # 다른 가능한 이름
+                tx_count = node.transmit_count
+                
+            if hasattr(node, 'rx_count'):
+                rx_count = node.rx_count
+            elif hasattr(node, 'receive_count'):  # 다른 가능한 이름
+                rx_count = node.receive_count
+            
+            # 총계에 더하기
+            total_tx += tx_count
+            total_rx += rx_count
+            
+            # 통계를 위한 노드 추적
+            if node_energy > 0:
+                nodes_with_energy.append(node_id)
+            if tx_count > 0:
+                nodes_with_tx.append(node_id)
+            if rx_count > 0:
+                nodes_with_rx.append(node_id)
+        
+        # 통계 출력
+        logger.info("\n===== Network Statistics =====")
+        logger.info(f"Active Nodes: {active_nodes}/{len(self.field.nodes)}")
+        logger.info(f"Total Energy Consumed: {total_energy:.6f} Joules")
+        logger.info(f"Total TX Count: {total_tx}")
+        logger.info(f"Total RX Count: {total_rx}")
+        logger.info(f"Nodes with Energy Consumption: {len(nodes_with_energy)}/{len(self.field.nodes)} ({len(nodes_with_energy)/len(self.field.nodes)*100:.1f}%)")
+        logger.info(f"Nodes with TX: {len(nodes_with_tx)}/{len(self.field.nodes)} ({len(nodes_with_tx)/len(self.field.nodes)*100:.1f}%)")
+        logger.info(f"Nodes with RX: {len(nodes_with_rx)}/{len(self.field.nodes)} ({len(nodes_with_rx)/len(self.field.nodes)*100:.1f}%)")
+        
+        return {
+            'active_nodes': active_nodes,
+            'total_energy': total_energy,
+            'total_tx': total_tx,
+            'total_rx': total_rx,
+            'nodes_with_energy': nodes_with_energy,
+            'nodes_with_tx': nodes_with_tx,
+            'nodes_with_rx': nodes_with_rx
+        }
+    
     def calculate_node_density(self):
         """
         Calculate node density in the field by dividing it into quadrants.

@@ -1,8 +1,89 @@
 import os
 import matplotlib.pyplot as plt
 import logging
+from config import DEBUG_MODE
+
+def setup_logging():
+    """로깅 설정"""
+    log_level = logging.DEBUG if DEBUG_MODE else logging.INFO
+    
+    # 로거 설정
+    logger = logging.getLogger('wsn_simulation')
+    logger.setLevel(log_level)
+    
+    # 이미 핸들러가 있으면 제거
+    if logger.handlers:
+        for handler in logger.handlers:
+            logger.removeHandler(handler)
+    
+    # 콘솔 핸들러
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+    
+    # 파일 핸들러 (results 폴더에 저장)
+    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    log_folder = os.path.join(script_dir, 'results')
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+    file_handler = logging.FileHandler(os.path.join(log_folder, 'simulation.log'))
+    file_handler.setLevel(log_level)
+    
+    # 포맷 설정
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
+    
+    # 핸들러 추가
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+    
+    return logger
 
 logger = logging.getLogger('wsn_simulation')
+
+def classify_wsn_nodes(wsn_field):
+    """WSN 노드들을 타입별로 분류"""
+    # 노드 분류를 위한 리스트 초기화
+    normal_nodes_x = []
+    normal_nodes_y = []
+    normal_colors = []
+    dead_nodes_x = []
+    dead_nodes_y = []
+    inside_attack_x = []
+    inside_attack_y = []
+    outside_attack_x = []
+    outside_attack_y = []
+    affected_nodes_x = []
+    affected_nodes_y = []
+    
+    # 노드 데이터 분류
+    for node in wsn_field.nodes.values():
+        if node.status == "inactive":
+            dead_nodes_x.append(node.pos_x)
+            dead_nodes_y.append(node.pos_y)
+        elif node.node_type == "malicious_inside":
+            inside_attack_x.append(node.pos_x)
+            inside_attack_y.append(node.pos_y)
+        elif node.node_type == "malicious_outside":
+            outside_attack_x.append(node.pos_x)
+            outside_attack_y.append(node.pos_y)
+        elif node.node_type == "affected":
+            affected_nodes_x.append(node.pos_x)
+            affected_nodes_y.append(node.pos_y)
+        else:
+            normal_nodes_x.append(node.pos_x)
+            normal_nodes_y.append(node.pos_y)
+            energy_ratio = node.energy_level / node.initial_energy
+            color_intensity = max(0.2, energy_ratio)
+            normal_colors.append((0, 0, color_intensity))
+    
+    return {
+        'normal': (normal_nodes_x, normal_nodes_y, normal_colors),
+        'dead': (dead_nodes_x, dead_nodes_y),
+        'inside_attack': (inside_attack_x, inside_attack_y),
+        'outside_attack': (outside_attack_x, outside_attack_y),
+        'affected': (affected_nodes_x, affected_nodes_y)
+    }
 
 def plot_wsn_network(wsn_field, classified_nodes, attack_range):
     """WSN 노드 배치 시각화"""
