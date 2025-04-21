@@ -4,15 +4,15 @@ WSN Simulation Configuration Parameters
 
 # Simulation Parameters
 RANDOM_SEED = 42          # 랜덤 시드
-FIELD_SIZE = 2000         # 필드 크기 (m)
-NUM_NODES = 1000          # 센서 노드 수
-BS_POSITION = (1000, 1000)  # 베이스 스테이션 위치 (x, y)
+FIELD_SIZE = 1000         # 필드 크기 (m)
+NUM_NODES = 500          # 센서 노드 수
+BS_POSITION = (500, 500)  # 베이스 스테이션 위치 (x, y)
 
 # Routing Parameters
 ROUTING_PROTOCOL = "dijkstra"  # 라우팅 프로토콜 타입 ("dijkstra", "LEACH")
 
 # Attack Parameters
-ATTACK_TYPE = "outside"   # 공격 타입 ("outside" or "inside")
+ATTACK_TYPE = "inside"   # 공격 타입 ("outside" or "inside")
 NUM_ATTACKERS = 1         # 공격자 수
 ATTACK_TIMING = "0"      # 공격 시점 (보고서 발생 기준 "0", "30", "50", "70", "90")
 ATTACK_RANGE = 150        # 공격 영향 범위 (m)
