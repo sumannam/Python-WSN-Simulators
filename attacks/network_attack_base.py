@@ -123,4 +123,60 @@ class NetworkAttackBase:
         Execute the network attack.
         This method should be implemented by subclasses.
         """
-        raise NotImplementedError("Subclasses must implement execute_attack()") 
+        raise NotImplementedError("Subclasses must implement execute_attack()")
+
+    def get_affected_and_neighbor_nodes(self):
+        """affected 노드와 그 이웃 노드들의 목록을 반환"""
+        affected_nodes = set()
+        neighbor_nodes = set()
+        
+        # affected 노드 찾기
+        for node_id, node in self.field.nodes.items():
+            if node.node_type == "affected":
+                affected_nodes.add(node_id)
+                # affected 노드의 이웃 노드들 추가
+                for neighbor_id in node.neighbor_nodes:
+                    if self.field.nodes[neighbor_id].node_type == "normal":
+                        neighbor_nodes.add(neighbor_id)
+        
+        return list(affected_nodes), list(neighbor_nodes)
+
+    def get_malicious_node_path(self, source_node_id):
+        """소스 노드에서 가장 가까운 malicious 노드로의 경로 생성"""
+        path = [source_node_id]
+        current_id = source_node_id
+        
+        while True:
+            current_node = self.field.nodes[current_id]
+            # 현재 노드의 이웃 중 malicious 노드 찾기
+            malicious_neighbors = [n_id for n_id in current_node.neighbor_nodes 
+                                if self.field.nodes[n_id].node_type in ["malicious_inside", "malicious_outside"]]
+            
+            if malicious_neighbors:
+                # malicious 노드를 찾았으면 경로에 추가하고 종료
+                path.append(malicious_neighbors[0])
+                break
+            
+            # malicious 노드 방향으로 이동
+            min_distance = float('inf')
+            next_hop = None
+            
+            for neighbor_id in current_node.neighbor_nodes:
+                neighbor = self.field.nodes[neighbor_id]
+                if neighbor_id not in path:  # 순환 방지
+                    for mal_id, mal_node in self.field.nodes.items():
+                        if mal_node.node_type in ["malicious_inside", "malicious_outside"]:
+                            distance = ((neighbor.pos_x - mal_node.pos_x)**2 + 
+                                     (neighbor.pos_y - mal_node.pos_y)**2)**0.5
+                            if distance < min_distance:
+                                min_distance = distance
+                                next_hop = neighbor_id
+            
+            if next_hop is None:
+                # malicious 노드로 가는 경로를 찾지 못함
+                return None
+            
+            path.append(next_hop)
+            current_id = next_hop
+        
+        return path 

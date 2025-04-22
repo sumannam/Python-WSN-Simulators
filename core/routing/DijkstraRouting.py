@@ -1,4 +1,4 @@
-from core.routing.BaseRoutingProtocol import BaseRoutingProtocol
+from .BaseRoutingProtocol import BaseRoutingProtocol
 import numpy as np
 
 
