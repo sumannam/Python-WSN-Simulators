@@ -113,7 +113,7 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
         if np.random.randint(1, 101) <= ATTACK_PROBABILITY:
             # affected 노드나 그 이웃 노드에서 보고서 생성
             affected_nodes, neighbor_nodes = attack.get_affected_and_neighbor_nodes()
-            candidate_nodes = affected_nodes + neighbor_nodes
+            candidate_nodes = list(affected_nodes) + list(neighbor_nodes)
             
             if candidate_nodes:
                 source_node = np.random.choice(candidate_nodes)
@@ -132,6 +132,8 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
                     # 경로를 따라 패킷 전송 시뮬레이션
                     for j in range(len(path)-1):
                         current_id = path[j]
+                        if current_id == "BS":
+                            continue
                         current_node = wsn_field.nodes[current_id]
                         current_node.transmit_packet(32)  # 패킷 전송
                         
@@ -162,7 +164,32 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
         # 보고서 경로 정보 출력
         if DEBUG_MODE and len(results) > 0:
             latest_result = results[-1]
-            path_str = " -> ".join(map(str, latest_result['path']))
+            path_str = ""
+            for i, node_id in enumerate(latest_result['path']):
+                if i > 0:
+                    path_str += " -> "
+                # 노드 ID가 'BS'인 경우
+                if node_id == "BS":
+                    path_str += "BS"
+                    continue
+                
+                # 노드가 존재하는지 확인
+                try:
+                    node = next((node for node in wsn_field.nodes.values() if node.node_id == node_id), None)
+                    if node is None:
+                        path_str += f"{node_id}(?)"  # 존재하지 않는 노드는 (?)로 표시
+                        continue
+                        
+                    if node.node_type == "affected":
+                        path_str += f"{node_id}(+)"
+                    elif node.node_type in ["malicious_inside", "malicious_outside"]:
+                        path_str += f"{node_id}(*)"
+                    else:
+                        path_str += str(node_id)
+                except:
+                    path_str += f"{node_id}(?)"  # 에러 발생 시 (?)로 표시
+                    continue
+                    
             logger.debug(f"Report #{i+1}: Source Node {latest_result['source_node']}, Path: {path_str}")
 
         # 진행상황 출력 (10% 단위)
