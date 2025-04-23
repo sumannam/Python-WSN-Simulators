@@ -217,3 +217,40 @@ class Sinkhole(NetworkAttackBase):
         
         # 이웃 노드 재탐색
         self.field.find_neighbors()
+
+    def get_malicious_node_path(self, source_node):
+        """소스 노드에서 malicious 노드로의 경로를 찾는 메소드"""
+        if source_node not in self.field.nodes:
+            return None
+            
+        # malicious 노드 찾기
+        malicious_nodes = [node_id for node_id, node in self.field.nodes.items() 
+                         if node.node_type in ["malicious_inside", "malicious_outside"]]
+        
+        if not malicious_nodes:
+            return None
+            
+        # 가장 가까운 malicious 노드 찾기
+        min_distance = float('inf')
+        closest_malicious = None
+        
+        for malicious_id in malicious_nodes:
+            distance = self.field.calculate_distance(source_node, malicious_id)
+            if distance < min_distance:
+                min_distance = distance
+                closest_malicious = malicious_id
+                
+        if closest_malicious is None:
+            return None
+            
+        # 소스 노드에서 malicious 노드까지의 경로 찾기
+        path = self.field.find_path(source_node, closest_malicious)
+        
+        if path:
+            # malicious 노드에서 BS까지의 경로 찾기
+            bs_path = self.field.find_path(closest_malicious, "BS")
+            if bs_path:
+                # 두 경로를 합치기 (malicious 노드는 한 번만 포함)
+                return path[:-1] + bs_path
+                
+        return None

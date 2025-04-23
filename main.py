@@ -108,7 +108,7 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
     logger.info(f"Malicious node IDs: {malicious_nodes}")
 
     # 보고서 전송 시뮬레이션
-    for i in range(num_reports):
+    for report_id in range(1, num_reports + 1):
         # 공격 확률에 따라 소스 노드 선택
         if np.random.randint(1, 101) <= ATTACK_PROBABILITY:
             # affected 노드나 그 이웃 노드에서 보고서 생성
@@ -122,7 +122,7 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
                 
                 if path:
                     result = {
-                        'report_id': i + 1,
+                        'report_id': report_id,
                         'source_node': source_node,
                         'path': path,
                         'source_energy': wsn_field.nodes[source_node].energy_level
@@ -145,11 +145,13 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
                     # malicious 노드로 가는 경로를 찾지 못한 경우 일반 전송
                     result = routing.simulate_reports(1)[0]
                     if validate_path(result['path']):
+                        result['report_id'] = report_id
                         results.append(result)
             else:
                 # affected 노드나 이웃이 없는 경우 일반 전송
                 result = routing.simulate_reports(1)[0]
                 if validate_path(result['path']):
+                    result['report_id'] = report_id
                     results.append(result)
         else:
             # 일반 전송 (랜덤한 노드에서 BS로)
@@ -159,6 +161,7 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
                 source_node = np.random.choice(available_nodes)
                 result = routing.simulate_reports(1, source_node=source_node)[0]
                 if validate_path(result['path']):
+                    result['report_id'] = report_id
                     results.append(result)
 
         # 보고서 경로 정보 출력
@@ -188,11 +191,11 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
                     path_str += f"{node_id}(?)"  # 에러 발생 시 (?)로 표시
                     continue
                     
-            logger.debug(f"Report #{i+1}: Source Node {latest_result['source_node']}, Path: {path_str}")
+            logger.debug(f"Report #{latest_result['report_id']}: Source Node {latest_result['source_node']}, Path: {path_str}")
 
         # 진행상황 출력 (10% 단위)
-        if i % (num_reports // 10) == 0:
-            progress = (i / num_reports) * 100
+        if report_id % (num_reports // 10) == 0:
+            progress = (report_id / num_reports) * 100
             logger.info(f"Simulation Progress: {progress:.1f}%")
 
     end_time = time.time()
