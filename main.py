@@ -175,17 +175,15 @@ def simulate_with_attack(wsn_field, routing, attack_timing, num_reports):
                 
                 # 노드가 존재하는지 확인
                 try:
-                    node = next((node for node in wsn_field.nodes.values() if node.node_id == node_id), None)
-                    if node is None:
-                        path_str += f"{node_id}(?)"  # 존재하지 않는 노드는 (?)로 표시
-                        continue
-                        
+                    node = wsn_field.nodes[int(node_id)]
+
                     if node.node_type == "affected":
                         path_str += f"{node_id}(+)"
                     elif node.node_type in ["malicious_inside", "malicious_outside"]:
                         path_str += f"{node_id}(*)"
                     else:
                         path_str += str(node_id)
+                    
                 except:
                     path_str += f"{node_id}(?)"  # 에러 발생 시 (?)로 표시
                     continue

@@ -22,6 +22,9 @@ class Sensors:
         self.tx_count = 0  # 전송 패킷 카운터
         self.rx_count = 0  # 수신 패킷 카운터
         
+    def get_node_id(self) -> int:
+        """노드의 ID를 반환"""
+        return self.node_id
         
     def get_location(self) -> tuple:
         """노드의 위치 반환"""
