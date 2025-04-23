@@ -253,4 +253,47 @@ class Sinkhole(NetworkAttackBase):
                 # 두 경로를 합치기 (malicious 노드는 한 번만 포함)
                 return path[:-1] + bs_path
                 
+        # 경로를 찾지 못한 경우, affected 노드의 next_hop을 따라가기
+        current_node = self.field.nodes[source_node]
+        path = [source_node]
+        
+        while current_node.next_hop is not None:
+            next_hop = current_node.next_hop
+            if next_hop == "BS":
+                path.append("BS")
+                break
+                
+            if next_hop in malicious_nodes:
+                path.append(next_hop)
+                path.append("BS")
+                return path
+                
+            path.append(next_hop)
+            current_node = self.field.nodes[next_hop]
+            
         return None
+
+    def get_affected_and_neighbor_nodes(self):
+        """affected 노드와 그 이웃 노드들을 반환하는 메소드"""
+        affected_nodes = set()
+        neighbor_nodes = set()
+        
+        # affected 노드 찾기
+        for node_id, node in self.field.nodes.items():
+            if node.node_type == "affected":
+                affected_nodes.add(node_id)
+                # affected 노드의 이웃 노드들 추가
+                for neighbor_id in node.neighbors:
+                    if self.field.nodes[neighbor_id].node_type == "normal":
+                        neighbor_nodes.add(neighbor_id)
+                        
+        # affected 노드가 없는 경우, malicious 노드의 이웃 노드들을 affected로 설정
+        if not affected_nodes:
+            for node_id, node in self.field.nodes.items():
+                if node.node_type in ["malicious_inside", "malicious_outside"]:
+                    for neighbor_id in node.neighbors:
+                        if self.field.nodes[neighbor_id].node_type == "normal":
+                            self.field.nodes[neighbor_id].node_type = "affected"
+                            affected_nodes.add(neighbor_id)
+                            
+        return affected_nodes, neighbor_nodes
