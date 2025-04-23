@@ -5,12 +5,16 @@ import numpy as np
 class DijkstraRouting(BaseRoutingProtocol):
     def __init__(self, field):
         super().__init__(field)
+        self.routing_table = {}  # 라우팅 테이블 초기화
 
     def setup_routing(self):
         """BS까지의 최단 경로 설정 - Dijkstra 알고리즘 기반"""
         if not self.field.base_station:
             print("Base station not set. Cannot setup routing.")
             return
+
+        # 라우팅 테이블 초기화
+        self.routing_table = {}
 
         # 모든 노드의 초기화
         for node in self.field.nodes.values():
@@ -34,13 +38,17 @@ class DijkstraRouting(BaseRoutingProtocol):
         # 나머지 노드들의 라우팅 설정 (Dijkstra 알고리즘 기반)
         self._apply_dijkstra_routing()
 
+        # 라우팅 테이블 업데이트
+        for node_id, node in self.field.nodes.items():
+            self.routing_table[node_id] = node.next_hop
+
     def _connect_direct_to_bs(self):
         """BS와 직접 연결 가능한 노드들 처리"""
         bs_x = self.field.base_station['x']
         bs_y = self.field.base_station['y']
         
         for node_id, node in self.field.nodes.items():
-            if node.node_type == "normal":
+            if node.node_type == "normal" and node.energy_level > 0:  # 에너지가 있는 노드만 고려
                 dist_to_bs = ((node.pos_x - bs_x)**2 + (node.pos_y - bs_y)**2)**0.5
                 if dist_to_bs <= node.comm_range:
                     old_next_hop = node.next_hop
@@ -51,6 +59,8 @@ class DijkstraRouting(BaseRoutingProtocol):
                             node.route_changes += 1
                         else:
                             node.route_changes = 1
+                    # 라우팅 테이블 업데이트
+                    self.routing_table[node_id] = "BS"
 
     def _apply_dijkstra_routing(self):
         """Dijkstra 알고리즘을 사용한 라우팅 적용"""
@@ -65,7 +75,8 @@ class DijkstraRouting(BaseRoutingProtocol):
 
                     for neighbor_id in node.neighbor_nodes:
                         neighbor = self.field.nodes[neighbor_id]
-                        if neighbor.hop_count < min_hop_count:
+                        # 에너지가 있는 이웃 노드만 고려
+                        if neighbor.hop_count < min_hop_count and neighbor.energy_level > 0:
                             min_hop_count = neighbor.hop_count
                             best_next_hop = neighbor_id
 
@@ -78,6 +89,8 @@ class DijkstraRouting(BaseRoutingProtocol):
                                 node.route_changes += 1
                             else:
                                 node.route_changes = 1
+                        # 라우팅 테이블 업데이트
+                        self.routing_table[node_id] = best_next_hop
                         changes_made = True
 
     def _connect_nodes_iteratively(self, unconnected_nodes, connected_nodes):
@@ -137,9 +150,11 @@ class DijkstraRouting(BaseRoutingProtocol):
                                  (node.pos_y - self.field.base_station['y'])**2)
                 
                 # BS가 통신 범위 내에 있고, 에너지가 충분한 경우에만 연결
-                if (distance <= self.field.base_station['comm_range'] and 
-                    node.energy_level > self.field.base_station['energy_threshold']):
+                if (distance <= node.comm_range and 
+                    node.energy_level > 0):  # 에너지가 0보다 크면 연결 가능
                     self.routing_table[node_id] = "BS"
+                    node.next_hop = "BS"
+                    node.hop_count = 1
                     # 에너지 소모 시뮬레이션
                     node.transmit_packet(32)  # 기본 패킷 크기로 에너지 소모 계산
 
