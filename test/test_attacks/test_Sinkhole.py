@@ -144,5 +144,94 @@ class test_Sinkhole(unittest.TestCase):
         # for i in range(1, len(ranges)):
         #     self.assertGreaterEqual(affected_counts[i], affected_counts[i-1])
 
+    def test_inside_attack_initialization(self):
+        """내부 공격 초기화 테스트"""
+        # 내부 공격용 Sinkhole 객체 생성
+        inside_sinkhole = Sinkhole(self.field, attack_type="inside", attack_range=self.attack_range)
+        
+        # 초기화 상태 확인
+        self.assertEqual(inside_sinkhole.field, self.field)
+        self.assertEqual(inside_sinkhole.attack_type, "inside")
+        self.assertEqual(inside_sinkhole.attack_range, self.attack_range)
+        self.assertEqual(len(inside_sinkhole.malicious_nodes), 0)
+
+    def test_inside_attack_execution(self):
+        """내부 공격 실행 테스트"""
+        # 내부 공격용 Sinkhole 객체 생성
+        inside_sinkhole = Sinkhole(self.field, attack_type="inside", attack_range=self.attack_range)
+        
+        # 내부 공격 실행
+        num_attackers = 1
+        result = inside_sinkhole.execute_attack(num_attackers)
+        
+        # 결과 확인
+        self.assertEqual(result, inside_sinkhole.malicious_nodes)
+        self.assertEqual(len(result), num_attackers)
+        
+        # 공격자 노드 속성 확인
+        for attacker_id in inside_sinkhole.malicious_nodes:
+            attacker = self.field.nodes[attacker_id]
+            self.assertEqual(attacker.node_type, "malicious_inside")
+            self.assertEqual(attacker.next_hop, "BS")
+            self.assertEqual(attacker.hop_count, 1)
+            
+            # 영향을 받은 노드가 있는지 확인
+            affected_nodes = [node for node in self.field.nodes.values() 
+                             if node.node_type == "affected"]
+            self.assertTrue(len(affected_nodes) > 0)
+
+    def test_inside_attack_node_conversion(self):
+        """내부 공격 노드 변환 테스트"""
+        # 내부 공격용 Sinkhole 객체 생성
+        inside_sinkhole = Sinkhole(self.field, attack_type="inside", attack_range=self.attack_range)
+        
+        # 공격 전 노드 상태 저장
+        original_nodes = {node_id: node.node_type for node_id, node in self.field.nodes.items()}
+        
+        # 내부 공격 실행
+        num_attackers = 1
+        inside_sinkhole.launch_inside_attack(num_attackers)
+        
+        # 노드 변환 확인
+        converted_nodes = 0
+        for node_id, node in self.field.nodes.items():
+            if node.node_type == "malicious_inside":
+                # 원래는 normal 노드였어야 함
+                self.assertEqual(original_nodes[node_id], "normal")
+                converted_nodes += 1
+        
+        # 변환된 노드 수 확인
+        self.assertEqual(converted_nodes, num_attackers)
+
+    def test_inside_attack_affected_nodes(self):
+        """내부 공격의 영향을 받은 노드 테스트"""
+        # 내부 공격용 Sinkhole 객체 생성
+        inside_sinkhole = Sinkhole(self.field, attack_type="inside", attack_range=self.attack_range)
+        
+        # 내부 공격 실행
+        num_attackers = 1
+        inside_sinkhole.launch_inside_attack(num_attackers)
+        
+        # 공격자 노드 ID 가져오기
+        attacker_id = inside_sinkhole.malicious_nodes[0]
+        attacker = self.field.nodes[attacker_id]
+        
+        # 영향을 받은 노드 확인
+        affected_nodes = [node for node in self.field.nodes.values() 
+                         if node.node_type == "affected"]
+        
+        # 영향을 받은 노드 속성 확인
+        for node in affected_nodes:
+            # 노드가 공격 범위 내에 있는지 확인
+            distance = np.sqrt(
+                (node.pos_x - attacker.pos_x)**2 + 
+                (node.pos_y - attacker.pos_y)**2
+            )
+            self.assertLessEqual(distance, self.attack_range)
+            
+            # 라우팅 정보가 올바르게 변경되었는지 확인
+            self.assertEqual(node.next_hop, attacker_id)
+            self.assertEqual(node.hop_count, 1)
+
 # if __name__ == '__main__':
 #     unittest.main()

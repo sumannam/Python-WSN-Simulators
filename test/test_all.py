@@ -22,6 +22,7 @@ from test_Sinkhole import test_Sinkhole
 from test_Field import test_Field
 from test_MicazMotes import test_MicazMotes
 from test_Main import test_Main
+from test_core.test_DijkstraRouting import test_DijkstraRouting
 
 
 def test_attacks():
@@ -29,6 +30,7 @@ def test_attacks():
     test_sinkhole = unittest.TestLoader().loadTestsFromTestCase(test_Sinkhole)
     test_field = unittest.TestLoader().loadTestsFromTestCase(test_Field)
     test_micazmotes = unittest.TestLoader().loadTestsFromTestCase(test_MicazMotes)
+    test_dijkstra = unittest.TestLoader().loadTestsFromTestCase(test_DijkstraRouting)
 
     allTests = unittest.TestSuite()
     
@@ -36,6 +38,7 @@ def test_attacks():
     allTests.addTest(test_sinkhole)
     allTests.addTest(test_field)
     allTests.addTest(test_micazmotes)
+    allTests.addTest(test_dijkstra)
 
     unittest.TextTestRunner(verbosity=2, failfast=True).run(allTests)
 
