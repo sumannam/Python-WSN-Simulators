@@ -1,5 +1,6 @@
 import numpy as np
 from network_attack_base import NetworkAttackBase
+import random
 
 class Sinkhole(NetworkAttackBase):
     """
@@ -23,6 +24,73 @@ class Sinkhole(NetworkAttackBase):
         """
         super().__init__(field, attack_type, attack_range)
         self.grid_size = 100  # Grid size for density calculation
+    
+    def analyze_network_statistics(self):
+        """네트워크 통계 분석 및 출력"""
+        total_energy = 0
+        total_tx = 0
+        total_rx = 0
+        active_nodes = 0
+        
+        # 에너지와 패킷 전송/수신 통계
+        nodes_with_energy = []
+        nodes_with_tx = []
+        nodes_with_rx = []
+        
+        for node_id, node in self.field.nodes.items():
+            if node.status == "active":
+                active_nodes += 1
+                
+            # 에너지 소비 확인
+            node_energy = getattr(node, 'total_consumed_energy', 0)
+            total_energy += node_energy
+            
+            # tx_count와 rx_count 직접 확인 (안전하게 접근)
+            tx_count = 0
+            rx_count = 0
+            
+            # hasattr로 속성 존재 여부 확인 후 접근
+            if hasattr(node, 'tx_count'):
+                tx_count = node.tx_count
+            elif hasattr(node, 'transmit_count'):  # 다른 가능한 이름
+                tx_count = node.transmit_count
+                
+            if hasattr(node, 'rx_count'):
+                rx_count = node.rx_count
+            elif hasattr(node, 'receive_count'):  # 다른 가능한 이름
+                rx_count = node.receive_count
+            
+            # 총계에 더하기
+            total_tx += tx_count
+            total_rx += rx_count
+            
+            # 통계를 위한 노드 추적
+            if node_energy > 0:
+                nodes_with_energy.append(node_id)
+            if tx_count > 0:
+                nodes_with_tx.append(node_id)
+            if rx_count > 0:
+                nodes_with_rx.append(node_id)
+        
+        # 통계 출력
+        logger.info("\n===== Network Statistics =====")
+        logger.info(f"Active Nodes: {active_nodes}/{len(self.field.nodes)}")
+        logger.info(f"Total Energy Consumed: {total_energy:.6f} Joules")
+        logger.info(f"Total TX Count: {total_tx}")
+        logger.info(f"Total RX Count: {total_rx}")
+        logger.info(f"Nodes with Energy Consumption: {len(nodes_with_energy)}/{len(self.field.nodes)} ({len(nodes_with_energy)/len(self.field.nodes)*100:.1f}%)")
+        logger.info(f"Nodes with TX: {len(nodes_with_tx)}/{len(self.field.nodes)} ({len(nodes_with_tx)/len(self.field.nodes)*100:.1f}%)")
+        logger.info(f"Nodes with RX: {len(nodes_with_rx)}/{len(self.field.nodes)} ({len(nodes_with_rx)/len(self.field.nodes)*100:.1f}%)")
+        
+        return {
+            'active_nodes': active_nodes,
+            'total_energy': total_energy,
+            'total_tx': total_tx,
+            'total_rx': total_rx,
+            'nodes_with_energy': nodes_with_energy,
+            'nodes_with_tx': nodes_with_tx,
+            'nodes_with_rx': nodes_with_rx
+        }
     
     def calculate_node_density(self):
         """
@@ -259,3 +327,74 @@ class Sinkhole(NetworkAttackBase):
         
         # Refresh neighbor discovery
         self.field.find_neighbors()
+
+    def get_malicious_node_path(self, source_node_id):
+        """소스 노드에서 가장 가까운 malicious 노드로의 경로 생성"""
+        path = [source_node_id]
+        current_id = source_node_id
+        
+        while True:
+            current_node = self.field.nodes[current_id]
+            # 현재 노드의 이웃 중 malicious 노드 찾기
+            malicious_neighbors = [n_id for n_id in current_node.neighbor_nodes 
+                                if self.field.nodes[n_id].node_type in ["malicious_inside", "malicious_outside"]]
+            
+            if malicious_neighbors:
+                # malicious 노드를 찾았으면 경로에 추가하고 종료
+                path.append(malicious_neighbors[0])
+                break
+            
+            # malicious 노드 방향으로 이동
+            min_distance = float('inf')
+            next_hop = None
+            
+            for neighbor_id in current_node.neighbor_nodes:
+                neighbor = self.field.nodes[neighbor_id]
+                if neighbor_id not in path:  # 순환 방지
+                    for mal_id, mal_node in self.field.nodes.items():
+                        if mal_node.node_type in ["malicious_inside", "malicious_outside"]:
+                            distance = ((neighbor.pos_x - mal_node.pos_x)**2 + 
+                                     (neighbor.pos_y - mal_node.pos_y)**2)**0.5
+                            if distance < min_distance:
+                                min_distance = distance
+                                next_hop = neighbor_id
+            
+            if next_hop is None:
+                # malicious 노드로 가는 경로를 찾지 못함
+                return None
+            
+            path.append(next_hop)
+            current_id = next_hop
+        
+        return path
+
+    def should_perform_attack(self):
+        """공격 확률에 따라 공격을 수행할지 결정"""
+        return random.random() < self.attack_probability
+
+    def get_affected_and_neighbor_nodes(self, source_node_id):
+        """공격에 영향을 받는 노드와 그 이웃 노드들을 반환"""
+        affected_nodes = set()
+        neighbor_nodes = set()
+        
+        # 공격 확률 체크
+        if not self.should_perform_attack():
+            return affected_nodes, neighbor_nodes
+            
+        # 소스 노드에서 malicious 노드로의 경로 찾기
+        path = self.get_malicious_node_path(source_node_id)
+        if path is None:
+            return affected_nodes, neighbor_nodes
+        
+        # 경로상의 노드들을 affected_nodes에 추가
+        for node_id in path:
+            affected_nodes.add(node_id)
+            
+        # 각 affected 노드의 이웃들을 neighbor_nodes에 추가
+        for node_id in affected_nodes:
+            node = self.field.nodes[node_id]
+            for neighbor_id in node.neighbor_nodes:
+                if neighbor_id not in affected_nodes:
+                    neighbor_nodes.add(neighbor_id)
+        
+        return affected_nodes, neighbor_nodes

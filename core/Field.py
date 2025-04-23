@@ -62,3 +62,36 @@ class Field:
         """새로운 센서 노드 생성"""
         from nodes.MicazMotes import MicazMotes
         return MicazMotes(node_id, pos_x, pos_y)
+
+    def find_path(self, source_id, target_id):
+        """두 노드 사이의 최단 경로를 찾는 메소드"""
+        if source_id not in self.nodes or (target_id != "BS" and target_id not in self.nodes):
+            return None
+            
+        # BFS를 사용하여 최단 경로 찾기
+        queue = [(source_id, [source_id])]
+        visited = set([source_id])
+        
+        while queue:
+            current_id, path = queue.pop(0)
+            
+            if current_id == target_id:
+                return path
+                
+            current_node = self.nodes[current_id]
+            for neighbor_id in current_node.neighbors:
+                if neighbor_id not in visited:
+                    visited.add(neighbor_id)
+                    queue.append((neighbor_id, path + [neighbor_id]))
+                    
+        return None
+
+    def calculate_distance(self, node1_id, node2_id):
+        """두 노드 사이의 거리를 계산하는 메소드"""
+        if node1_id not in self.nodes or node2_id not in self.nodes:
+            return float('inf')
+            
+        node1 = self.nodes[node1_id]
+        node2 = self.nodes[node2_id]
+        
+        return ((node1.pos_x - node2.pos_x)**2 + (node1.pos_y - node2.pos_y)**2)**0.5
