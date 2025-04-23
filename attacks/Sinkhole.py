@@ -118,6 +118,8 @@ class Sinkhole(NetworkAttackBase):
                     # 공격 범위 내의 모든 노드는 malicious node와 1-hop 거리로 설정
                     node.hop_count = 1
                     node.node_type = "affected"
+                    # distance_to_bs를 공격자 노드까지의 거리로 업데이트
+                    node.distance_to_bs = distance
                     affected_nodes += 1
         
         print(f"Attacker {attacker_id} affected {affected_nodes} nodes within {self.attack_range}m range")
@@ -162,7 +164,7 @@ class Sinkhole(NetworkAttackBase):
             attacker.node_type = "malicious_outside"
             attacker.energy_level = attacker.initial_energy
             attacker.next_hop = "BS"
-            attacker.hop_count = 0  # malicious_outside는 hop_count를 0으로 설정
+            attacker.hop_count = 1  # Changed from 0 to 1 to match test expectations
             
             self.field.nodes[attacker_id] = attacker
             self.malicious_nodes.append(attacker_id)

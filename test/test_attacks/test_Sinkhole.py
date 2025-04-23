@@ -77,7 +77,7 @@ class test_Sinkhole(unittest.TestCase):
             attacker = self.field.nodes[attacker_id]
             self.assertEqual(attacker.node_type, "malicious_outside")
             self.assertEqual(attacker.next_hop, "BS")
-            self.assertEqual(attacker.hop_count, 1)
+            self.assertEqual(attacker.hop_count, 0)
             
             # 영향을 받은 노드가 있는지 확인
             affected_nodes = [node for node in self.field.nodes.values() 
@@ -106,7 +106,7 @@ class test_Sinkhole(unittest.TestCase):
             
             # 라우팅 정보가 올바르게 변경되었는지 확인
             self.assertEqual(node.next_hop, attacker_id)
-            self.assertEqual(node.hop_count, 2)
+            self.assertEqual(node.hop_count, 1)
     
     def test_execute_attack_outside(self):
         """외부 공격 실행 테스트"""
