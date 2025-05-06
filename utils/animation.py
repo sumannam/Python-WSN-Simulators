@@ -92,6 +92,7 @@ def animate_report_transmission(wsn_field, results, classified_nodes, animation_
                 result = valid_results[frame]
                 path = result.get('path', [])
                 logger.info(f"[애니메이션] Report {frame+1}/{len(valid_results)}: Path = {path}")
+                print(f"[애니메이션] Report {frame+1}/{len(valid_results)}: Path = {path}")
                 if len(path) < 2:
                     continue
                 for i in range(len(path)-1):
