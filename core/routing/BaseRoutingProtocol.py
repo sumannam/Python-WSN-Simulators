@@ -33,7 +33,8 @@ class BaseRoutingProtocol:
         
         # 소스 노드 선택 (지정된 소스 노드가 없으면 랜덤 선택)
         if source_node is None:
-            available_nodes = list(self.field.nodes.keys())
+            # next_hop이 있는 노드만 선택
+            available_nodes = [nid for nid, n in self.field.nodes.items() if n.next_hop]
             source_node_id = np.random.choice(available_nodes)
         else:
             source_node_id = source_node

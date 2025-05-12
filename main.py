@@ -21,7 +21,8 @@ from core.routing.BaseRoutingProtocol import BaseRoutingProtocol
 from core.routing.routing_factory import get_routing_protocol
 
 from attacks.Sinkhole import Sinkhole
-from utils.visualize_network import plot_wsn_network, animate_report_transmission, classify_wsn_nodes, setup_logging
+from utils.visualize_network import plot_wsn_network, classify_wsn_nodes, setup_logging
+from utils.animation import animate_report_transmission
 from utils.data_handler import save_nodes_state, save_simulation_results
 from config import *
 
