@@ -8,6 +8,11 @@ class MicazMotes(Sensors):
        self.comm_range = 100  # 실외환경 기준 (100m)
        self.data_rate = 250000  # 250kbps
        
+       # 전력 관련 특성
+       self.voltage = 3.0  # 3V
+       self.tx_current = 17.4e-3  # 17.4mA
+       self.rx_current = 19.7e-3  # 19.7mA
+       
        # 에너지 소비량 (Joule 단위)
        self.tx_energy_per_byte = 16.25e-6  # 16.25 µJ per byte
        self.rx_energy_per_byte = 12.5e-6   # 12.5 µJ per byte
@@ -93,6 +98,8 @@ class MicazMotes(Sensors):
         'rx_count': self.rx_count,
         'tx_energy_per_byte': energy_info['tx_energy_per_byte'],
         'rx_energy_per_byte': energy_info['rx_energy_per_byte'],
+        'tx_power': self.voltage * self.tx_current,  # Power = Voltage * Current
+        'rx_power': self.voltage * self.rx_current,  # Power = Voltage * Current
         'hop_count': self.hop_count,
         'node_type': self.node_type
     })
