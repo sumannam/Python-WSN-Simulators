@@ -8,25 +8,22 @@ class MicazMotes(Sensors):
        self.comm_range = 100  # 실외환경 기준 (100m)
        self.data_rate = 250000  # 250kbps
        
-       # 전원 특성 (V, A 단위)
-       self.voltage = 3.0  # 2.7V ~ 3.3V 중간값
-       self.tx_current = 0.0174  # 17.4mA = 0.0174A
-       self.rx_current = 0.0197  # 19.7mA = 0.0197A
-       self.sleep_current = 0.000001  # 1μA = 0.000001A
+       # 전력 관련 특성
+       self.voltage = 3.0  # 3V
+       self.tx_current = 17.4e-3  # 17.4mA
+       self.rx_current = 19.7e-3  # 19.7mA
        
-       # 전력 계산 (W = V * A)
-       self._calculate_power_consumption()
+       # 에너지 소비량 (Joule 단위)
+       self.tx_energy_per_byte = 16.25e-6  # 16.25 µJ per byte
+       self.rx_energy_per_byte = 12.5e-6   # 12.5 µJ per byte
        
-       # 에너지 관리 (Joule = Wh * 3600)
-       battery_wh = 2 * 2.6  # 2개의 AA 배터리, 각 2.6Wh
-    #    self.initial_energy = battery_wh * 3600  # 변환: Wh -> Joules
-       self.initial_energy = 1 # 1 Joule
+       # 에너지 관리
+       self.initial_energy = 1  # 1 Joule
        self.energy_level = self.initial_energy
        self.consumed_energy_tx = 0  # Joules
        self.consumed_energy_rx = 0  # Joules
        self.total_consumed_energy = 0  # Joules
 
-       
    def add_neighbor(self, neighbor_id: int):
        """이웃 노드 추가"""
        if neighbor_id not in self.neighbor_nodes:
@@ -37,23 +34,16 @@ class MicazMotes(Sensors):
        if neighbor_id in self.neighbor_nodes:
            self.neighbor_nodes.remove(neighbor_id)
 
-   def _calculate_power_consumption(self):
-       """전력 소비량 계산 (Watts = V * A)"""
-       self.tx_power = self.voltage * self.tx_current  # W
-       self.rx_power = self.voltage * self.rx_current  # W
-       self.sleep_power = self.voltage * self.sleep_current  # W
-
    def calculate_packet_time(self, packet_size_bytes: int) -> float:
        """패킷 전송 시간 계산 (seconds)"""
        return (packet_size_bytes * 8) / self.data_rate
 
    def transmit_packet(self, packet_size_bytes: int = 32) -> float:
-       """패킷 전송 및 에너지 소비 계산 (Joules = W * s)"""
+       """패킷 전송 및 에너지 소비 계산 (Joules)"""
        if self.status == "inactive":
            return 0
            
-       packet_time = self.calculate_packet_time(packet_size_bytes)
-       energy_consumed = self.tx_power * packet_time  # Joules
+       energy_consumed = self.tx_energy_per_byte * packet_size_bytes  # Joules
        
        self.energy_level -= energy_consumed
        self.consumed_energy_tx += energy_consumed
@@ -66,12 +56,11 @@ class MicazMotes(Sensors):
        return energy_consumed
 
    def receive_packet(self, packet_size_bytes: int = 32) -> float:
-       """패킷 수신 및 에너지 소비 계산 (Joules = W * s)"""
+       """패킷 수신 및 에너지 소비 계산 (Joules)"""
        if self.status == "inactive":
            return 0
            
-       packet_time = self.calculate_packet_time(packet_size_bytes)
-       energy_consumed = self.rx_power * packet_time  # Joules
+       energy_consumed = self.rx_energy_per_byte * packet_size_bytes  # Joules
        
        self.energy_level -= energy_consumed
        self.consumed_energy_rx += energy_consumed
@@ -88,9 +77,8 @@ class MicazMotes(Sensors):
        return {
            "current_energy": self.energy_level,
            "energy_percentage": (self.energy_level / self.initial_energy) * 100,
-           "tx_power": self.tx_power,
-           "rx_power": self.rx_power,
-           "sleep_power": self.sleep_power
+           "tx_energy_per_byte": self.tx_energy_per_byte,
+           "rx_energy_per_byte": self.rx_energy_per_byte
        }
    
    def get_node_state_dict(self) -> dict:
@@ -108,10 +96,12 @@ class MicazMotes(Sensors):
         'total_consumed_energy': self.total_consumed_energy,
         'tx_count': self.tx_count,
         'rx_count': self.rx_count,
-        'tx_power': energy_info['tx_power'],
-        'rx_power': energy_info['rx_power'],
-        'hop_count': self.hop_count,  # hop_count 추가
-        'node_type': self.node_type   # node_type 추가
+        'tx_energy_per_byte': energy_info['tx_energy_per_byte'],
+        'rx_energy_per_byte': energy_info['rx_energy_per_byte'],
+        'tx_power': self.voltage * self.tx_current,  # Power = Voltage * Current
+        'rx_power': self.voltage * self.rx_current,  # Power = Voltage * Current
+        'hop_count': self.hop_count,
+        'node_type': self.node_type
     })
     
     return base_info

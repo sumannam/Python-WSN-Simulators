@@ -59,8 +59,9 @@ class test_MicazMotes(unittest.TestCase):
         expected_tx_power = self.node.voltage * self.node.tx_current
         expected_rx_power = self.node.voltage * self.node.rx_current
         
-        self.assertEqual(self.node.tx_power, expected_tx_power)
-        self.assertEqual(self.node.rx_power, expected_rx_power)
+        state_dict = self.node.get_node_state_dict()
+        self.assertEqual(state_dict['tx_power'], expected_tx_power)
+        self.assertEqual(state_dict['rx_power'], expected_rx_power)
     
     def test_packet_time_calculation(self):
         """패킷 전송 시간 계산 테스트"""
@@ -178,14 +179,14 @@ class test_MicazMotes(unittest.TestCase):
         
         self.assertIn('current_energy', energy_info)
         self.assertIn('energy_percentage', energy_info)
-        self.assertIn('tx_power', energy_info)
-        self.assertIn('rx_power', energy_info)
+        self.assertIn('tx_energy_per_byte', energy_info)
+        self.assertIn('rx_energy_per_byte', energy_info)
         
         # 값 정확성 확인
         self.assertEqual(energy_info['current_energy'], self.node.energy_level)
         self.assertEqual(energy_info['energy_percentage'], 100.0)  # 초기 상태는 100%
-        self.assertEqual(energy_info['tx_power'], self.node.tx_power)
-        self.assertEqual(energy_info['rx_power'], self.node.rx_power)
+        self.assertEqual(energy_info['tx_energy_per_byte'], self.node.tx_energy_per_byte)
+        self.assertEqual(energy_info['rx_energy_per_byte'], self.node.rx_energy_per_byte)
         
         # 에너지 소비 후 정보 변화 확인
         self.node.transmit_packet(32)
@@ -220,5 +221,5 @@ class test_MicazMotes(unittest.TestCase):
         self.assertEqual(state_dict['tx_count'], 0)
         self.assertEqual(state_dict['rx_count'], 0)
 
-# if __name__ == '__main__':
-#     unittest.main()
+if __name__ == '__main__':
+    unittest.main()

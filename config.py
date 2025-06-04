@@ -26,12 +26,12 @@ SAVE_FILE_NAME = 'final_nodes_state.csv'  # 결과 저장 파일명
 
 # Animation Parameters
 ENABLE_ANIMATION = False    # 애니메이션 활성화 여부
-ANIMATION_INTERVAL = 200   # 애니메이션 프레임 간격 (ms)
-ANIMATION_FPS = 1         # 애니메이션 FPS (GIF 저장용)
+ANIMATION_INTERVAL = 10000   # 애니메이션 프레임 간격 (ms)
+ANIMATION_FPS = 2         # 애니메이션 FPS (GIF 저장용)
 SAVE_ANIMATION = False    # 애니메이션 GIF 저장 여부
 LIVE_ANIMATION = True     # 실시간 애니메이션 표시 여부
-STEPS_PER_PATH = 10      # 각 경로 세그먼트당 애니메이션 단계 수
-PACKET_SIZE = 1000        # 패킷 표시 크기
+STEPS_PER_PATH = 2000      # 각 경로 세그먼트당 애니메이션 단계 수
+PACKET_SIZE = 12000        # 패킷 표시 크기
 
 # 디버깅 모드 (True일 경우 상세 로그 출력)
 DEBUG_MODE = True

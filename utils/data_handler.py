@@ -104,12 +104,31 @@ def save_simulation_results(results, filename='simulation_results.csv'):
     try:
         # 결과가 비어있지 않은 경우에만 저장
         if results:
-            fieldnames = list(results[0].keys())
+            # source_energy를 제외한 필드명만 사용
+            fieldnames = ['report_id', 'source_node', 'path']
             
             with open(file_path, 'w', newline='') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
-                writer.writerows(results)
+                
+                # numpy.int64를 일반 정수로 변환하여 저장
+                for result in results:
+                    # source_energy를 제외한 데이터만 저장
+                    filtered_result = {k: v for k, v in result.items() if k in fieldnames}
+                    
+                    # path 리스트의 각 요소를 정수로 변환
+                    if 'path' in filtered_result:
+                        path = filtered_result['path']
+                        converted_path = []
+                        for node in path:
+                            if node == 'BS':
+                                converted_path.append('BS')
+                            else:
+                                # numpy.int64나 다른 숫자 타입을 일반 정수로 변환
+                                converted_path.append(str(int(node)))
+                        filtered_result['path'] = converted_path
+                    
+                    writer.writerow(filtered_result)
             
             logger.info(f"시뮬레이션 결과가 저장되었습니다: {file_path}")
         else:
